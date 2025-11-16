@@ -101,6 +101,18 @@ git push stellar main
 
 ---
 
+## 🚀 BONUS: DEPLOYING TO VERCEL (recommended for static + backend)
+
+If you prefer Vercel for automatic builds from GitHub, add the following settings in the Vercel dashboard for your project:
+
+1. Build Command: `npm run vercel-build`  # already added to repository
+2. Output Directory: `build`
+3. Environment Variables: add `SUPABASE_URL` and `SUPABASE_ANON_KEY` as needed
+
+We also included `vercel.json` in the repo to enforce a static build that outputs to `build/`. If your Vercel build logs show a `Permission denied` error on `node_modules/.bin/vite`, changing the build command to `npm run vercel-build` will call Vite via Node and avoid that permission issue.
+
+---
+
 ## 🎬 STEP 4: ADD YOUR MOVIES
 
 ### A. Access Admin Portal

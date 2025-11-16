@@ -3,6 +3,9 @@
       "name": "THE ARCHIVE",
       "version": "0.1.0",
       "private": true,
+      "engines": {
+        "node": ">=18"
+      },
       "dependencies": {
           "@jsr/supabase__supabase-js": "^2.49.8",
           "@vitejs/plugin-react": "*",
@@ -19,7 +22,8 @@
           "vite": "6.3.5"
       },
       "scripts": {
-          "dev": "vite",
-          "build": "vite build"
+        "dev": "vite",
+        "build": "vite build",
+        "vercel-build": "node ./node_modules/vite/dist/node/cli.js build"
       }
   }
