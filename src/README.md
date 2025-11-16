@@ -1,4 +1,4 @@
-# 🎬 THEE ARCHIVE - Free Ganda & Clear Movie Library
+# 🎬 THEE ARCHIVE - Free Movie Library
 
 > **A Luganda movie download site with Google AdSense monetization**
 

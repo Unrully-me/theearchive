@@ -1,7 +1,7 @@
 # 🚀 THEE ARCHIVE - DEPLOYMENT GUIDE
 
 ## Project Overview
-**FREE GANDA & CLEAR MOVIE LIBRARY** - Luganda movie download site with:
+**FREE MOVIE LIBRARY** - Luganda movie download site with:
 - ✅ Supabase backend (already configured)
 - ✅ React frontend with Tailwind CSS
 - ✅ Secret admin portal (click red dot 6x, password: `0701680Kyamundu`)

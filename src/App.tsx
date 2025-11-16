@@ -1194,7 +1194,7 @@ export default function App() {
                 <h1 className="font-black tracking-tight text-[24px] leading-[24px] bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FFD700] bg-clip-text text-transparent">
                   THEE ARCHIVE
                 </h1>
-                <p className="text-[11px] text-[#FFD700] tracking-[0.2em] font-semibold">FREE GANDA & CLEAR MOVIE LIBRARY</p>
+                <p className="text-[11px] text-[#FFD700] tracking-[0.2em] font-semibold">FREE MOVIE LIBRARY</p>
               </div>
             </a>
 
@@ -1240,7 +1240,7 @@ export default function App() {
           <h2 className="mb-6 text-[48px] sm:text-[64px] lg:text-[72px] leading-[1.1] font-black">
             <span className="block">Your Free</span>
             <span className="block bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF4500] bg-clip-text text-transparent">
-              Ganda & Clear Movie Library
+              Movie Library
             </span>
           </h2>
           
