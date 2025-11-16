@@ -258,12 +258,18 @@ export default function App() {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${publicAnonKey}` },
         body: JSON.stringify({ url: adminFormData.videoUrl, adminPassword: ADMIN_PASSWORD })
       });
-      const j = await res.json();
+      // try to parse JSON but handle non-JSON gracefully
+      let j = null;
+      try { j = await res.json(); } catch (parseErr) {
+        const text = await res.text();
+        return alert('Failed to create short link (unexpected response): ' + text);
+      }
       if (!j.success) return alert('Failed to create short link: ' + (j.error || 'unknown'));
       setAdminFormData(prev => ({ ...prev, shortUrl: j.shortUrl }));
       alert('Short link created: ' + j.shortUrl);
     } catch (e: any) {
-      alert('Shorten failed: ' + (e.message || e));
+      console.error('Shorten failed:', e);
+      alert('Shorten failed: ' + (e.message || String(e)));
     }
   };
 
@@ -472,10 +478,11 @@ export default function App() {
 
   const handleCloseSearchModal = () => {
     try { window.history.replaceState({}, '', '/'); } catch (e) { }
-    setShowSearchModal(false);
-    setSelectedMovie(null);
-    setSearchAdCountdown(15);
-    setSearchReady(false);
+            setShowSearchModal(false);
+            setSelectedMovie(null);
+            setSearchAdCountdown(15);
+            setSearchReady(false);
+            setSearchResults([]);
   };
 
   return (
@@ -921,7 +928,7 @@ export default function App() {
             }}
           >
             {/* Close Button */}
-            <div className="absolute -top-12 left-0 flex gap-2">
+            <div className="absolute top-4 left-4 flex gap-2 z-50">
               <button
                 onClick={() => {
                   handleCloseModal();
@@ -936,7 +943,7 @@ export default function App() {
 
             <button
               onClick={handleCloseModal}
-              className="absolute -top-12 right-0 p-2 bg-red-600 hover:bg-red-700 rounded-full transition-colors"
+              className="absolute top-4 right-4 p-2 bg-red-600 hover:bg-red-700 rounded-full transition-colors z-50"
               aria-label="Close modal"
             >
               <X className="w-6 h-6" />

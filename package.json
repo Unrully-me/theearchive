@@ -1,29 +1,29 @@
-
-  {
+{
       "name": "THE ARCHIVE",
       "version": "0.1.0",
       "private": true,
       "engines": {
-        "node": ">=18"
+            "node": ">=18"
       },
       "dependencies": {
-          "@jsr/supabase__supabase-js": "^2.49.8",
-          "@vitejs/plugin-react": "*",
-          "hono": "*",
-          "lucide-react": "*",
-          "re-resizable": "*",
-          "react": "^18.3.1",
-          "react-dom": "^18.3.1",
-          "vite": "*"
+            "@jsr/supabase__supabase-js": "^2.49.8",
+            "@vitejs/plugin-react": "*",
+            "hono": "*",
+            "lucide-react": "*",
+            "re-resizable": "*",
+            "react": "^18.3.1",
+            "react-dom": "^18.3.1",
+            "vite": "*"
       },
       "devDependencies": {
-          "@types/node": "^20.10.0",
-          "@vitejs/plugin-react-swc": "^3.10.2",
-          "vite": "6.3.5"
+            "@types/node": "^20.10.0",
+            "@vitejs/plugin-react-swc": "^3.10.2",
+            "sharp": "^0.34.5",
+            "vite": "6.3.5"
       },
       "scripts": {
-        "dev": "vite",
-        "build": "vite build",
-        "vercel-build": "node ./node_modules/vite/dist/node/cli.js build"
+            "dev": "vite",
+            "build": "vite build",
+            "vercel-build": "node ./node_modules/vite/dist/node/cli.js build"
       }
-  }
+}

@@ -119,6 +119,7 @@ We also included `vercel.json` in the repo to enforce a static build that output
 1. Visit your deployed site
 2. Click the red dot on logo 6 times
 3. Enter password: `0701680Kyamundu`
+3. Enter password: `0701680Kyamundu`
 
 ### B. Upload Movies to AWS S3
 ```bash
@@ -135,6 +136,35 @@ aws s3 presign s3://your-bucket-name/movies/movie.mp4 --expires-in 31536000
 - Thumbnail URL: Movie poster image URL
 - Genre, Year, File Size
 - Click "ADD MOVIE"
+
+### ✨ Update Logo & Favicon
+
+To add or change the site icon that appears on browser tabs and when users add the site to their home screen:
+
+1. Prepare your logo in multiple sizes: 16x16, 32x32 (favicon), 192x192 and 512x512 (PWA). Use PNG or SVG.
+     - Recommended: `favicon-16x16.png`, `favicon-32x32.png`, `logo-192.png`, `logo-512.png`.
+2. Place the files in the `public/` folder so Vite will include them during the build. For example:
+     - `public/favicon-32x32.png`
+     - `public/favicon-16x16.png`
+     - `public/logo-192.png`
+     - `public/logo-512.png`
+3. Ensure `index.html` contains the correct meta and link tags (we added a placeholder `logo.svg` and `manifest.json` as examples):
+```html
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+<link rel="apple-touch-icon" href="/logo-192.png"> 
+<link rel="manifest" href="/manifest.json" />
+```
+4. Rebuild and redeploy using Vercel or your hosting provider; your new logos will appear automatically after deployment.
+
+#### Short Links
+
+If you want to generate short links for sharing, follow these optional steps:
+
+1. In the Supabase function environment variables add:
+     - `ADMIN_PASSWORD` — the same password used for the admin portal, to restrict creation of short links (optional).
+     - `DEPLOY_HOST` — your site domain (example.com) so the server returns full `https://example.com/s/<code>` short links.
+2. Click the **Generate Short Link** button in the Admin Portal while adding a movie. The short link will be stored in the movie metadata and returned in the UI.
 
 ---
 
