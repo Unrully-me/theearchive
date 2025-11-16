@@ -215,6 +215,8 @@ export default function App() {
   };
 
   const handleCloseModal = () => {
+    // Replace history state to avoid going to external or stale pages when user hits Back
+    try { window.history.replaceState({}, '', '/'); } catch (e) { /* ignore */ }
     setShowAdModal(false);
     setSelectedMovie(null);
     setAdCountdown(50);
@@ -469,6 +471,7 @@ export default function App() {
   };
 
   const handleCloseSearchModal = () => {
+    try { window.history.replaceState({}, '', '/'); } catch (e) { }
     setShowSearchModal(false);
     setSelectedMovie(null);
     setSearchAdCountdown(15);
@@ -481,25 +484,29 @@ export default function App() {
       {showAdminPortal && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/95 backdrop-blur-sm p-4">
           <div className="relative max-w-5xl w-full max-h-[90vh] overflow-y-auto bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] rounded-2xl border-2 border-[#FFD700]/30">
-            {/* Close Button */}
-            <button
-              onClick={() => {
-                setShowAdminPortal(false);
-                setIsAdminAuthenticated(false);
-                setAdminPassword('');
-              }}
-              className="absolute top-4 right-4 p-2 bg-red-600 hover:bg-red-700 rounded-full transition-colors z-10"
-            >
-              <X className="w-6 h-6" />
-            </button>
+                {/* Sticky footer with download button to keep visible */}
+                <div className="mt-6 sticky bottom-0 bg-gradient-to-t from-black/80 pt-4 -mx-6 sm:-mx-8 px-6 sm:px-8 pb-6">
+                  <div className="max-w-3xl mx-auto">
+                    <div className="flex flex-col sm:flex-row items-center sm:items-end gap-3">
+                      <button
+                        onClick={handleDownload}
+                        disabled={!downloadReady}
+                        className={`flex-1 py-3 rounded-xl font-black text-lg flex items-center justify-center gap-3 transition-all ${
+                          downloadReady
+                            ? 'bg-gradient-to-r from-[#FFD700] to-[#FFA500] hover:from-[#FFA500] hover:to-[#FF4500] text-black shadow-lg shadow-[#FFD700]/50 hover:scale-105'
+                            : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                        }`}
+                      >
+                        <Download className="w-6 h-6" />
+                        {downloadReady ? 'DOWNLOAD NOW' : 'PREPARING DOWNLOAD...'}
+                      </button>
 
-            {/* Admin Login */}
-            {!isAdminAuthenticated ? (
-              <div className="p-8 sm:p-12 flex flex-col items-center justify-center min-h-[400px]">
-                <div className="w-20 h-20 bg-gradient-to-br from-[#FFD700] to-[#FFA500] rounded-full flex items-center justify-center mb-6">
-                  <Lock className="w-10 h-10 text-black" />
+                      {selectedMovie.fileSize && (
+                        <p className="text-center text-gray-400 text-sm mt-2 sm:mt-0 sm:ml-4">File size: {selectedMovie.fileSize}</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <h2 className="text-3xl font-black mb-2 bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF4500] bg-clip-text text-transparent">
                   ADMIN PORTAL
                 </h2>
                 <p className="text-gray-400 mb-8">Enter password to continue</p>
@@ -1109,12 +1116,12 @@ export default function App() {
       <header className="fixed top-0 w-full z-40 transition-all duration-300 bg-gradient-to-b from-black/90 to-transparent backdrop-blur-md border-b border-[#FFD700]/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
-            {/* Logo */}
-            <div className="flex items-center space-x-4">
+            {/* Logo - click to go home */}
+            <a href="/" onClick={(e) => { e.preventDefault(); window.location.replace('/'); }} className="flex items-center space-x-4 cursor-pointer">
               <div className="relative p-2 bg-gradient-to-br from-[#FFD700] to-[#FFA500] rounded-xl shadow-lg shadow-[#FFD700]/30">
                 <Film className="w-8 h-8 text-black" strokeWidth={2.5} />
                 <div 
-                  onClick={handleRedDotClick}
+                  onClick={(e) => { e.stopPropagation(); handleRedDotClick(); }}
                   className="absolute -top-1 -right-1 w-4 h-4 bg-[#FF4500] rounded-full border-2 border-black animate-pulse cursor-pointer hover:scale-125 transition-transform"
                   title="Admin Access"
                 ></div>
@@ -1125,7 +1132,7 @@ export default function App() {
                 </h1>
                 <p className="text-[11px] text-[#FFD700] tracking-[0.2em] font-semibold">FREE GANDA & CLEAR MOVIE LIBRARY</p>
               </div>
-            </div>
+            </a>
 
             {/* Mobile Menu Button */}
             <button 
