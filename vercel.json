@@ -3,6 +3,7 @@
     { "src": "package.json", "use": "@vercel/static-build", "config": { "distDir": "build" } }
   ],
   "routes": [
+    { "src": "/s/(.*)", "dest": "https://avvwsbiqgtjcwphadypu.supabase.co/functions/v1/make-server-4d451974/s/$1" },
     { "src": "^/assets/(.*)", "dest": "/assets/$1" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }

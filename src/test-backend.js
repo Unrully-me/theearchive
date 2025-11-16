@@ -345,6 +345,53 @@ async function runTests() {
   }
   
   console.log('\n');
+  // Test 7: Shortener
+  console.log('Test 7: Shorten URL');
+  if (await testShorten()) {
+    passed++;
+  } else {
+    failed++;
+  }
+}
+
+async function testShorten() {
+  try {
+    info('Testing shorten endpoint...');
+    const testUrl = 'https://example.com/video.mp4';
+    const response = await fetch(`${BASE_URL}/shorten`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${ANON_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ url: testUrl })
+    });
+
+    if (!response.ok) {
+      error(`Shorten failed with status: ${response.status}`);
+      return false;
+    }
+
+    const data = await response.json();
+    if (data.success && data.short) {
+      success('Shorten passed!');
+      info('Short link: ' + data.short);
+      // Test redirect
+      const redirectTest = await fetch(`${BASE_URL}/s/${data.short}`, { redirect: 'manual' });
+      if (redirectTest.status === 302 || redirectTest.status === 301) {
+        success('Short link redirect passed!');
+      } else {
+        warn('Short link redirect returned status: ' + redirectTest.status);
+      }
+      return true;
+    }
+
+    error('Shorten returned false');
+    return false;
+  } catch (err) {
+    error('Shorten error: ' + err.message);
+    return false;
+  }
 }
 
 // Run all tests

@@ -95,6 +95,60 @@ app.get("/make-server-4d451974/settings", async (c) => {
   }
 });
 
+// Create short link
+app.post("/make-server-4d451974/shorten", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { url, ttl, adminPassword } = body;
+
+    if (!url) return c.json({ success: false, error: "url is required" }, 400);
+
+    // Optional: basic admin protection — only enforced if ADMIN_PASSWORD is set in function env
+    const adminEnv = Deno.env.get("ADMIN_PASSWORD");
+    if (adminEnv) {
+      if (adminPassword !== adminEnv) return c.json({ success: false, error: "Unauthorized" }, 401);
+    }
+
+    // Generate a short code — base36 of timestamp + random
+    const genCode = () => {
+      const r = Math.floor(Math.random() * 1679616).toString(36); // up to 36^6
+      return `${Date.now().toString(36).slice(-3)}${r}`.slice(0, 8);
+    };
+
+    let code = genCode();
+    // Avoid collisions — loop max 5 times
+    for (let i = 0; i < 5; i++) {
+      const existing = await kv.get(`short:${code}`);
+      if (!existing) break;
+      code = genCode();
+    }
+
+    const entry = { url, ttl: ttl || null, createdAt: new Date().toISOString() };
+    await kv.set(`short:${code}`, entry);
+
+    return c.json({ success: true, short: code, shortUrl: `https://${Deno.env.get("DEPLOY_HOST") || "yourdomain.com"}/s/${code}` });
+  } catch (error) {
+    console.log(`Shorten error: ${error}`);
+    return c.json({ success: false, error: String(error) }, 500);
+  }
+});
+
+// Redirect short link to stored url
+app.get("/s/:code", async (c) => {
+  try {
+    const code = c.req.param("code");
+    const entry = await kv.get(`short:${code}`);
+    if (!entry || !entry.url) return c.json({ success: false, error: "Not found" }, 404);
+
+    // TODO: if entry.url is S3 object, generate presigned URL here
+
+    return c.redirect(entry.url, 302);
+  } catch (error) {
+    console.log(`Redirect error: ${error}`);
+    return c.json({ success: false, error: String(error) }, 500);
+  }
+});
+
 // Get a single ad setting
 app.get("/make-server-4d451974/settings/:key", async (c) => {
   try {
@@ -168,6 +222,7 @@ app.post("/make-server-4d451974/movies", async (c) => {
       year: year || new Date().getFullYear().toString(),
       type: type || "movie", // movie, series, documentary
       fileSize: fileSize || "",
+      shortUrl: (body as any).shortUrl || "",
       createdAt: new Date().toISOString(),
     };
 

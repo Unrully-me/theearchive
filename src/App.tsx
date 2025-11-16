@@ -38,7 +38,8 @@ export default function App() {
     genre: '',
     year: '',
     type: 'movie',
-    fileSize: ''
+    fileSize: '',
+    shortUrl: ''
   });
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPasswordError, setShowPasswordError] = useState(false);
@@ -246,6 +247,24 @@ export default function App() {
     setAdminFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleGenerateShortLink = async () => {
+    if (!adminFormData.videoUrl) return alert('Please add a video URL to shorten');
+
+    try {
+      const res = await fetch(`${API_URL}/shorten`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${publicAnonKey}` },
+        body: JSON.stringify({ url: adminFormData.videoUrl, adminPassword: ADMIN_PASSWORD })
+      });
+      const j = await res.json();
+      if (!j.success) return alert('Failed to create short link: ' + (j.error || 'unknown'));
+      setAdminFormData(prev => ({ ...prev, shortUrl: j.shortUrl }));
+      alert('Short link created: ' + j.shortUrl);
+    } catch (e: any) {
+      alert('Shorten failed: ' + (e.message || e));
+    }
+  };
+
   const handleAddMovie = async () => {
     if (!adminFormData.title || !adminFormData.videoUrl) {
       alert('Please fill in at least Title and Video URL');
@@ -286,7 +305,8 @@ export default function App() {
           genre: '',
           year: '',
           type: 'movie',
-          fileSize: ''
+          fileSize: '',
+          shortUrl: ''
         });
         setConfirmPassword('');
         fetchMovies();
@@ -309,7 +329,8 @@ export default function App() {
       genre: movie.genre,
       year: movie.year,
       type: movie.type,
-      fileSize: movie.fileSize || ''
+      fileSize: movie.fileSize || '',
+      shortUrl: (movie as any).shortUrl || ''
     });
     setAdminTab('add');
   };
@@ -572,6 +593,34 @@ export default function App() {
                         placeholder="Enter movie title"
                       />
                     </div>
+                    <div className="mt-3 sm:mt-0">
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={handleGenerateShortLink}
+                          className="px-4 py-2 bg-gray-800 text-white rounded-xl hover:bg-gray-700 transition"
+                        >
+                          Generate Short Link
+                        </button>
+                        {adminFormData.shortUrl && (
+                          <div className="flex items-center gap-2">
+                            <input
+                              readOnly
+                              value={adminFormData.shortUrl}
+                              className="px-3 py-2 rounded bg-black/50 border border-[#FFD700]/20 text-sm w-[320px]"
+                            />
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(adminFormData.shortUrl);
+                                alert('Short URL copied to clipboard');
+                              }}
+                              className="px-3 py-2 bg-[#FFD700] rounded text-black font-black"
+                            >
+                              Copy
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
                     <div>
                       <label className="block text-sm text-gray-400 mb-2">Description</label>
@@ -735,6 +784,24 @@ export default function App() {
                             <p className="text-sm text-gray-400">{movie.year} • {movie.genre}</p>
                             {movie.fileSize && (
                               <p className="text-xs text-gray-500 mt-1">{movie.fileSize}</p>
+                            )}
+                            {(movie as any).shortUrl && (
+                              <div className="mt-2 flex items-center gap-2">
+                                <a
+                                  href={(movie as any).shortUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-sm text-[#FFD700] underline"
+                                >
+                                  Short link
+                                </a>
+                                <button
+                                  onClick={() => { navigator.clipboard.writeText((movie as any).shortUrl); alert('Short link copied'); }}
+                                  className="text-xs px-2 py-1 rounded bg-[#FFD700] text-black"
+                                >
+                                  Copy
+                                </button>
+                              </div>
                             )}
                           </div>
 

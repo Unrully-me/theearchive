@@ -122,6 +122,14 @@ VALUES (
 );
 ```
 
+---
+
+## 🔗 Short Links
+
+You can generate a short link for any movie URL from the Admin Portal. Click **Generate Short Link** after entering the AWS/YouTube URL — the backend stores the mapping under `short:<code>` in the KV table and returns the `https://yourdomain.com/s/<code>` link. Short links redirect to the original URL and can be used for sharing.
+
+If you want to restrict short link creation to admins, set `ADMIN_PASSWORD` as a secret in the Supabase function env. You can also change `DEPLOY_HOST` env var to have generated short links use your real domain.
+
 If this works → Your site will show "Test Movie"!
 
 Then you can delete it and add real movies.
