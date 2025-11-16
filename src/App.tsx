@@ -907,16 +907,30 @@ export default function App() {
           <div
             className="relative w-full mx-4"
             style={{
-              width: 'min(95vw, 1100px)',
-              maxHeight: '90vh',
+              width: 'min(95vw, 900px)',
+              maxHeight: '85vh',
               overflow: 'auto',
               resize: 'both',
             }}
           >
             {/* Close Button */}
+            <div className="absolute -top-12 left-0 flex gap-2">
+              <button
+                onClick={() => {
+                  handleCloseModal();
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="px-4 py-2 bg-gray-800 text-white rounded-xl hover:bg-gray-700 transition"
+                aria-label="Back to Home"
+              >
+                ← Back to Home
+              </button>
+            </div>
+
             <button
               onClick={handleCloseModal}
               className="absolute -top-12 right-0 p-2 bg-red-600 hover:bg-red-700 rounded-full transition-colors"
+              aria-label="Close modal"
             >
               <X className="w-6 h-6" />
             </button>
@@ -924,7 +938,7 @@ export default function App() {
             {/* Movie Info */}
             <div className="bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] rounded-2xl border-2 border-[#FFD700]/30 overflow-hidden">
               {/* Thumbnail */}
-              <div className="relative h-56 sm:h-72 md:h-80 max-h-[55vh] sm:max-h-[60vh] overflow-hidden">
+              <div className="relative h-44 sm:h-56 md:h-64 max-h-[50vh] sm:max-h-[55vh] overflow-hidden">
                 {selectedMovie.thumbnailUrl ? (
                   <img
                     src={selectedMovie.thumbnailUrl}
@@ -950,7 +964,7 @@ export default function App() {
                 )}
 
                 {/* Ad Space - Replace with real ad code */}
-                <div className="my-6 p-8 bg-gradient-to-r from-[#FFD700]/10 to-[#FF4500]/10 rounded-xl border-2 border-[#FFD700]/20 flex flex-col items-center justify-center min-h-[200px]">
+                <div className="my-6 p-6 sm:p-8 bg-gradient-to-r from-[#FFD700]/10 to-[#FF4500]/10 rounded-xl border-2 border-[#FFD700]/20 flex flex-col items-center justify-center min-h-[140px]">
                   <div className="text-center">
                     <div className="w-16 h-16 mx-auto mb-4 bg-[#FFD700] rounded-full flex items-center justify-center animate-pulse">
                       <Eye className="w-8 h-8 text-black" />
@@ -993,7 +1007,7 @@ export default function App() {
                 >
                   <Download className="w-6 h-6" />
                   {downloadReady ? 'DOWNLOAD NOW' : 'PREPARING DOWNLOAD...'}
-                </button>
+                  {downloadReady ? 'DOWNLOAD NOW' : 'PREPARING DOWNLOAD...'}
 
                 {selectedMovie.fileSize && (
                   <p className="text-center text-gray-500 text-sm mt-3">
@@ -1025,6 +1039,19 @@ export default function App() {
             >
               <X className="w-6 h-6" />
             </button>
+
+            <div className="absolute -top-12 left-0">
+              <button
+                onClick={() => {
+                  handleCloseSearchModal();
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="px-4 py-2 bg-gray-800 text-white rounded-xl hover:bg-gray-700 transition"
+                aria-label="Back to Home"
+              >
+                ← Back to Home
+              </button>
+            </div>
 
             {/* Ad Content */}
             <div className="bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] rounded-2xl border-2 border-[#FFD700]/30 overflow-hidden p-12">
