@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import CookieConsent from './components/CookieConsent';
 import { Film, Menu, X, Download, Eye, Lock, Plus, Edit2, Trash2, Save, Search, DollarSign } from 'lucide-react';
 import { projectId, publicAnonKey } from './utils/supabase/info';
 
@@ -50,6 +51,7 @@ export default function App() {
   const [searchAdCountdown, setSearchAdCountdown] = useState(15);
   const [searchReady, setSearchReady] = useState(false);
   const [searchResults, setSearchResults] = useState<Movie[]>([]);
+  const [lastSearch, setLastSearch] = useState('');
 
   const API_URL = `https://${projectId}.supabase.co/functions/v1/make-server-4d451974`;
   const ADMIN_PASSWORD = '0701680Kyamundu';
@@ -122,7 +124,19 @@ export default function App() {
           Authorization: `Bearer ${publicAnonKey}`,
         },
       });
-      const data = await res.json();
+      // parse JSON but fall back to text for non-JSON responses
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch (parseErr) {
+        const text = await res.text();
+        console.warn('fetchAdSettings: non-JSON response', text);
+        if (res.status === 404) {
+          throw new Error('Settings endpoint not found (404). You may need to redeploy your Supabase function.');
+        } else {
+          throw new Error('Failed to parse settings response: ' + text);
+        }
+      }
       if (data && data.success) {
         setAdSettings(data.settings || {});
         try {
@@ -146,7 +160,18 @@ export default function App() {
         },
         body: JSON.stringify({ settings }),
       });
-      const json = await res.json();
+      let json: any = null;
+      try {
+        json = await res.json();
+      } catch (parseErr) {
+        const text = await res.text();
+        console.warn('saveAdSettings: non-JSON response', text);
+        if (res.status === 404) {
+          throw new Error('Settings endpoint not found (404). Redeploy the Supabase function.');
+        } else {
+          throw new Error('Failed to parse save response: ' + text);
+        }
+      }
       if (json && json.success) {
         setAdSettings(settings);
         try {
@@ -271,7 +296,21 @@ export default function App() {
       console.error('Shorten failed:', e);
       alert('Shorten failed: ' + (e.message || String(e)));
     }
-  };
+    };
+
+    const handleGetShortStats = async () => {
+      if (!adminFormData.shortUrl) return alert('No short URL set');
+      try {
+        const code = adminFormData.shortUrl.split('/s/').pop();
+        const res = await fetch(`${API_URL}/shorts/${code}/stats`, { headers: { Authorization: `Bearer ${publicAnonKey}` } });
+        const j = await res.json();
+        if (!j.success) return alert('No stats found: ' + (j.error || 'unknown'));
+        alert(`Short link visits: ${j.stats.count || 0}\nLast visit: ${j.stats.lastVisit || 'never'}`);
+      } catch (e: any) {
+        console.error(e);
+        alert('Failed to fetch stats');
+      }
+    };
 
   const handleAddMovie = async () => {
     if (!adminFormData.title || !adminFormData.videoUrl) {
@@ -450,11 +489,19 @@ export default function App() {
       return;
     }
 
+    // Protect against rapid duplicate searches
+    if (searchQuery.trim() === lastSearch.trim()) {
+      // same query - don't run again
+      setShowSearchModal(true);
+      return;
+    }
+
     // Show ad modal first
     setShowSearchModal(true);
     setSearchAdCountdown(15);
     setSearchReady(false);
     setSearchResults(filteredMovies);
+    setLastSearch(searchQuery);
   };
 
   const handleSearchDownload = () => {
@@ -488,6 +535,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0a0a0a] text-white">
       {/* Admin Portal Modal */}
+      <CookieConsent />
       {showAdminPortal && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/95 backdrop-blur-sm p-4">
           <div className="relative max-w-5xl w-full max-h-[90vh] overflow-y-auto bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] rounded-2xl border-2 border-[#FFD700]/30">
@@ -514,11 +562,13 @@ export default function App() {
                     </div>
                   </div>
                 </div>
-                  ADMIN PORTAL
-                </h2>
-                <p className="text-gray-400 mb-8">Enter password to continue</p>
-                
-                <input
+                {/* Admin Portal Login / Auth state */}
+                {!isAdminAuthenticated ? (
+                  <div className="p-6 sm:p-8">
+                    <h2 className="text-3xl font-black mb-2 bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF4500] bg-clip-text text-transparent">ADMIN PORTAL</h2>
+                    <p className="text-gray-400 mb-8">Enter password to continue</p>
+
+                    <input
                   type="password"
                   value={adminPassword}
                   onChange={(e) => setAdminPassword(e.target.value)}
@@ -533,8 +583,8 @@ export default function App() {
                 >
                   LOGIN
                 </button>
-              </div>
-            ) : (
+                  </div>
+                ) : (
               <div className="p-6 sm:p-8">
                 {/* Admin Header */}
                 <div className="mb-6">
@@ -621,7 +671,14 @@ export default function App() {
                               readOnly
                               value={adminFormData.shortUrl}
                               className="px-3 py-2 rounded bg-black/50 border border-[#FFD700]/20 text-sm w-[320px]"
-                            />
+                              placeholder="ca-pub-5559193988562698"
+                              />
+                              <button
+                                onClick={handleGetShortStats}
+                                className="px-3 py-2 bg-gray-700 rounded text-white text-sm"
+                              >
+                                View Stats
+                              </button>
                             <button
                               onClick={() => {
                                 navigator.clipboard.writeText(adminFormData.shortUrl);
@@ -851,7 +908,7 @@ export default function App() {
                         value={adSettings.client || ''}
                         onChange={(e) => setAdSettings({ ...adSettings, client: e.target.value })}
                         className="w-full px-4 py-3 bg-black/50 border-2 border-[#FFD700]/30 rounded-xl text-white focus:outline-none focus:border-[#FFD700]"
-                        placeholder="ca-pub-XXXXXXXXXXXXXXX"
+                        placeholder="ca-pub-5559193988562698"
                       />
                     </div>
 
@@ -992,7 +1049,7 @@ export default function App() {
                           {/* Google AdSense unit: replace data-ad-client & data-ad-slot */}
                           <ins className="adsbygoogle"
                             style={{ display: 'block' }}
-                            data-ad-client={adSettings.client || 'ca-pub-XXXXXXXXXXXXXXX'}
+                            data-ad-client={adSettings.client || 'ca-pub-5559193988562698'}
                             data-ad-slot={adSettings.downloadSlot || '1234567890'}
                             data-ad-format="auto"
                             data-full-width-responsive="true"
@@ -1021,7 +1078,7 @@ export default function App() {
                 >
                   <Download className="w-6 h-6" />
                   {downloadReady ? 'DOWNLOAD NOW' : 'PREPARING DOWNLOAD...'}
-                  {downloadReady ? 'DOWNLOAD NOW' : 'PREPARING DOWNLOAD...'}
+                </button>
 
                 {selectedMovie.fileSize && (
                   <p className="text-center text-gray-500 text-sm mt-3">
@@ -1085,7 +1142,7 @@ export default function App() {
                       {/* Google AdSense unit for search ads */}
                       <ins className="adsbygoogle"
                         style={{ display: 'block' }}
-                        data-ad-client={adSettings.client || 'ca-pub-XXXXXXXXXXXXXXX'}
+                        data-ad-client={adSettings.client || 'ca-pub-5559193988562698'}
                         data-ad-slot={adSettings.searchSlot || '2345678901'}
                         data-ad-format="auto"
                         data-full-width-responsive="true"
@@ -1256,7 +1313,7 @@ export default function App() {
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {movies.map((movie, index) => (
+              {searchResults.length === 0 && movies.map((movie, index) => (
                 <div
                   key={movie.id}
                   onClick={() => handleMovieClick(movie)}

@@ -96,27 +96,24 @@ app.get("/make-server-4d451974/settings", async (c) => {
 });
 
 // Create short link
-app.post("/make-server-4d451974/shorten", async (c) => {
+const shortenHandler = async (c: any) => {
   try {
     const body = await c.req.json();
     const { url, ttl, adminPassword } = body;
 
     if (!url) return c.json({ success: false, error: "url is required" }, 400);
 
-    // Optional: basic admin protection — only enforced if ADMIN_PASSWORD is set in function env
     const adminEnv = Deno.env.get("ADMIN_PASSWORD");
     if (adminEnv) {
       if (adminPassword !== adminEnv) return c.json({ success: false, error: "Unauthorized" }, 401);
     }
 
-    // Generate a short code — base36 of timestamp + random
     const genCode = () => {
-      const r = Math.floor(Math.random() * 1679616).toString(36); // up to 36^6
+      const r = Math.floor(Math.random() * 1679616).toString(36);
       return `${Date.now().toString(36).slice(-3)}${r}`.slice(0, 8);
     };
 
     let code = genCode();
-    // Avoid collisions — loop max 5 times
     for (let i = 0; i < 5; i++) {
       const existing = await kv.get(`short:${code}`);
       if (!existing) break;
@@ -131,21 +128,65 @@ app.post("/make-server-4d451974/shorten", async (c) => {
     console.log(`Shorten error: ${error}`);
     return c.json({ success: false, error: String(error) }, 500);
   }
-});
+};
+
+// Shorten endpoints (both with and without the function prefix) — some deployments / tests rely on either path
+app.post("/make-server-4d451974/shorten", shortenHandler);
+app.post("/shorten", shortenHandler);
 
 // Redirect short link to stored url
-app.get("/s/:code", async (c) => {
+const redirectShortHandler = async (c: any) => {
   try {
     const code = c.req.param("code");
     const entry = await kv.get(`short:${code}`);
     if (!entry || !entry.url) return c.json({ success: false, error: "Not found" }, 404);
 
-    // TODO: if entry.url is S3 object, generate presigned URL here
+    // Track visit stat for short link
+    try {
+      const statKey = `short:visits:${code}`;
+      const stat = (await kv.get(statKey)) || { count: 0, lastVisit: null };
+      stat.count = (stat.count || 0) + 1;
+      stat.lastVisit = new Date().toISOString();
+      await kv.set(statKey, stat);
+    } catch (e) {
+      console.log('Failed to increment short visit stat:', e);
+    }
 
     return c.redirect(entry.url, 302);
   } catch (error) {
     console.log(`Redirect error: ${error}`);
     return c.json({ success: false, error: String(error) }, 500);
+  }
+};
+
+// Support both paths for redirect
+app.get("/s/:code", redirectShortHandler);
+app.get("/make-server-4d451974/s/:code", redirectShortHandler);
+
+// Short link stats
+app.get("/make-server-4d451974/shorts/:code/stats", async (c) => {
+  try {
+    const code = c.req.param('code');
+    const statKey = `short:visits:${code}`;
+    const stat = await kv.get(statKey);
+    if (!stat) return c.json({ success: false, error: 'No stats found' }, 404);
+    return c.json({ success: true, stats: stat });
+  } catch (e) {
+    console.log('Short stats error:', e);
+    return c.json({ success: false, error: String(e) }, 500);
+  }
+});
+
+app.get('/shorts/:code/stats', async (c) => {
+  try {
+    const code = c.req.param('code');
+    const statKey = `short:visits:${code}`;
+    const stat = await kv.get(statKey);
+    if (!stat) return c.json({ success: false, error: 'No stats found' }, 404);
+    return c.json({ success: true, stats: stat });
+  } catch (e) {
+    console.log('Short stats error:', e);
+    return c.json({ success: false, error: String(e) }, 500);
   }
 });
 
@@ -166,11 +207,10 @@ app.get("/make-server-4d451974/settings/:key", async (c) => {
 });
 
 // Set (or update) an ad setting
-app.post("/make-server-4d451974/settings", async (c) => {
+const settingsHandler = async (c: any) => {
   try {
     const body = await c.req.json();
     const { key, value, settings } = body;
-    // If the client sends a full 'settings' object, save it as ads:all
     if (settings && typeof settings === 'object') {
       await kv.set('ads:all', settings);
       return c.json({ success: true, key: 'all', value: settings });
@@ -185,7 +225,11 @@ app.post("/make-server-4d451974/settings", async (c) => {
     console.log(`Error setting ad setting: ${error}`);
     return c.json({ success: false, error: String(error) }, 500);
   }
-});
+};
+
+// Settings endpoints (both with and without the function prefix)
+app.post("/make-server-4d451974/settings", settingsHandler);
+app.post("/settings", settingsHandler);
 
 // Delete an ad setting
 app.delete("/make-server-4d451974/settings/:key", async (c) => {
@@ -201,26 +245,7 @@ app.delete("/make-server-4d451974/settings/:key", async (c) => {
 });
 
 // Add new movie
-app.post("/make-server-4d451974/movies", async (c) => {
-  try {
-    const body = await c.req.json();
-    const { title, description, videoUrl, thumbnailUrl, genre, year, type, fileSize } = body;
-
-    if (!title || !videoUrl) {
-      return c.json({ success: false, error: "Title and video URL are required" }, 400);
-    }
-
-    // Generate unique ID based on timestamp
-    const id = Date.now().toString();
-    const movie = {
-      id,
-      title,
-      description: description || "",
-      videoUrl,
-      thumbnailUrl: thumbnailUrl || "",
-      genre: genre || "General",
-      year: year || new Date().getFullYear().toString(),
-      type: type || "movie", // movie, series, documentary
+// (moved to settingsHandler above as an alias endpoint)
       fileSize: fileSize || "",
       shortUrl: (body as any).shortUrl || "",
       createdAt: new Date().toISOString(),

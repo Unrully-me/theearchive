@@ -530,7 +530,7 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
                   <div className="mt-4">
                     <ins className="adsbygoogle"
                       style={{ display: 'block' }}
-                      data-ad-client={(window as any).AD_SETTINGS?.client || 'ca-pub-XXXXXXXXXXXXXXX'}
+                      data-ad-client={(window as any).AD_SETTINGS?.client || 'ca-pub-5559193988562698'}
                       data-ad-slot={(window as any).AD_SETTINGS?.playerSlot || '3456789012'}
                       data-ad-format="auto"
                       data-full-width-responsive="true"

@@ -179,7 +179,7 @@ In `/App.tsx`, find the search ad modal section around line 920:
   {/* REPLACE THIS WITH YOUR GOOGLE ADSENSE CODE */}
   <ins className="adsbygoogle"
        style={{ display: 'block' }}
-       data-ad-client="ca-pub-XXXXXXXXXX"
+     data-ad-client="ca-pub-5559193988562698"
        data-ad-slot="YYYYYYYYYY"
        data-ad-format="auto"></ins>
   <script>
@@ -193,9 +193,9 @@ In `/App.tsx`, find the download ad modal section around line 820:
 ```tsx
 <div className="my-6 p-8 bg-gradient-to-r from-[#FFD700]/10 to-[#FF4500]/10 rounded-xl">
   {/* REPLACE THIS WITH YOUR GOOGLE ADSENSE CODE */}
-  <ins className="adsbygoogle"
+     <ins className="adsbygoogle"
        style={{ display: 'block' }}
-       data-ad-client="ca-pub-XXXXXXXXXX"
+               data-ad-client="ca-pub-5559193988562698"
        data-ad-slot="YYYYYYYYYY"
        data-ad-format="auto"></ins>
   <script>

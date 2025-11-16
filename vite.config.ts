@@ -13,8 +13,9 @@
       },
     },
     build: {
-      target: 'esnext',
-      outDir: 'build',
+      // use a slightly narrower target so esbuild on some hosts (Vercel, old Node) is compatible
+      target: 'es2020',
+      outDir: 'build'
     },
     server: {
       port: 3000,

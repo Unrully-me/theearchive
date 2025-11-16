@@ -1,0 +1,8 @@
+User-agent: *
+Disallow:
+
+# Allow Google AdSense / Googlebot
+User-agent: AdsBot-Google
+Allow: /
+User-agent: Mediapartners-Google
+Allow: /

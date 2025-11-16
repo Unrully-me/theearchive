@@ -128,6 +128,44 @@ VALUES (
 
 You can generate a short link for any movie URL from the Admin Portal. Click **Generate Short Link** after entering the AWS/YouTube URL — the backend stores the mapping under `short:<code>` in the KV table and returns the `https://yourdomain.com/s/<code>` link. Short links redirect to the original URL and can be used for sharing.
 
+Tracking short link visits
+--------------------------
+- When a user visits `/s/<code>` the system now increments a counter in your KV store. The key is `short:visits:<code>` and contains an object like `{ count: number, lastVisit: ISOString }`.
+- You can query stats from the function with `GET /shorts/<code>/stats` (or with the function prefix: `/make-server-4d451974/shorts/<code>/stats`).
+- From the Supabase dashboard you can also query `kv_store_4d451974` and search for keys prefixed with `short:visits:`.
+
+Google Analytics (optional)
+ 
+ Environment variable (recommended)
+ ---------------------------------
+ To configure this in production without hardcoding the ID, set the Vite env var `VITE_GA_ID` to your `G-...` Measurement ID on your hosting provider (e.g., Vercel). This avoids putting secrets/IDs directly into source:
+ 
+ - On Vercel: set `VITE_GA_ID` in Project Settings → Environment Variables
+ - On other hosts: set `VITE_GA_ID` in the build env
+ 
+ The code falls back to `G-C42E9WGM8K` if no env var is defined.
+
+ads.txt & robots.txt (authorize your publisher)
+----------------------------------------------
+- Add `public/ads.txt` to authorize your AdSense publisher. Example content for `ads.txt`:
+
+  google.com, pub-5559193988562698, DIRECT, f08c47fec0942fa0
+
+- Make `robots.txt` generally permissive for `AdsBot-Google` and `Mediapartners-Google` so AdSense can crawl and verify your site.
+
+  Example `public/robots.txt`:
+
+  User-agent: *
+  Disallow:
+
+  User-agent: AdsBot-Google
+  Allow: /
+
+  User-agent: Mediapartners-Google
+  Allow: /
+
+After updating these files, push and redeploy your site — then re-run AdSense verification.
+
 If you want to restrict short link creation to admins, set `ADMIN_PASSWORD` as a secret in the Supabase function env. You can also change `DEPLOY_HOST` env var to have generated short links use your real domain.
 
 If this works → Your site will show "Test Movie"!
