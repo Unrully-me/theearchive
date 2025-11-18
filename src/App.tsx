@@ -224,13 +224,40 @@ export default function App() {
     if (!selectedMovie) return;
     
     // Direct download from AWS
-    const link = document.createElement('a');
-    link.href = selectedMovie.videoUrl;
-    link.download = `${selectedMovie.title}.mp4`;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const doDirect = () => {
+      const link = document.createElement('a');
+      link.href = selectedMovie.videoUrl;
+      link.download = `${selectedMovie.title}.mp4`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      try { link.click(); } catch (e) { console.warn('anchor click failed', e); }
+      document.body.removeChild(link);
+    };
+
+    // Fetch blob fallback for cross-origin/download attribute use cases
+    const doBlobFallback = async () => {
+      try {
+        const resp = await fetch(selectedMovie.videoUrl, { method: 'GET', mode: 'cors' });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${selectedMovie.title}.mp4`;
+        document.body.appendChild(link);
+        try { link.click(); } catch (e) { console.warn('blob anchor click failed', e); }
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        return true;
+      } catch (err) {
+        console.error('download fallback failed', err);
+        try { window.open(selectedMovie.videoUrl, '_blank', 'noopener'); } catch (e) {}
+        return false;
+      }
+    };
+
+    doDirect();
+    setTimeout(() => { void doBlobFallback(); }, 1500);
     
     // Close modal after download starts
     setTimeout(() => {
@@ -507,14 +534,37 @@ export default function App() {
   const handleSearchDownload = () => {
     if (!selectedMovie) return;
     
-    // Direct download from AWS
-    const link = document.createElement('a');
-    link.href = selectedMovie.videoUrl;
-    link.download = `${selectedMovie.title}.mp4`;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const doDirect = () => {
+      const link = document.createElement('a');
+      link.href = selectedMovie.videoUrl;
+      link.download = `${selectedMovie.title}.mp4`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      try { link.click(); } catch (e) { console.warn('anchor click failed (search)', e); }
+      document.body.removeChild(link);
+    };
+
+    const doBlobFallback = async () => {
+      try {
+        const resp = await fetch(selectedMovie.videoUrl, { method: 'GET', mode: 'cors' });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${selectedMovie.title}.mp4`;
+        document.body.appendChild(link);
+        try { link.click(); } catch (e) { console.warn('blob anchor click failed (search)', e); }
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      } catch (err) {
+        console.error('download fallback failed (search)', err);
+        try { window.open(selectedMovie.videoUrl, '_blank', 'noopener'); } catch (e) {}
+      }
+    };
+
+    doDirect();
+    setTimeout(() => { void doBlobFallback(); }, 1500);
     
     // Close modal after download starts
     setTimeout(() => {
