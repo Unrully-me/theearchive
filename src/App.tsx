@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import CookieConsent from './components/CookieConsent';
+import { MoviePlayer } from './components/MoviePlayer';
 import { Film, Menu, X, Download, Eye, Lock, Plus, Edit2, Trash2, Save, Search, DollarSign } from 'lucide-react';
 import { projectId, publicAnonKey } from './utils/supabase/info';
 
@@ -23,6 +24,8 @@ export default function App() {
   const [showAdModal, setShowAdModal] = useState(false);
   const [adCountdown, setAdCountdown] = useState(50);
   const [downloadReady, setDownloadReady] = useState(false);
+  const [isWatching, setIsWatching] = useState(false);
+  const [autoPlayRequested, setAutoPlayRequested] = useState(false);
   
   // Admin Portal States
   const [redDotClicks, setRedDotClicks] = useState(0);
@@ -264,6 +267,18 @@ export default function App() {
       setShowAdModal(false);
       setSelectedMovie(null);
     }, 500);
+  };
+
+  const handleWatch = (movie?: Movie) => {
+    const m = movie || selectedMovie;
+    if (!m) return;
+    setSelectedMovie(m);
+    setShowAdModal(false);
+    setIsWatching(true);
+    // Let the player try to auto-play; errors will be swallowed in player
+    setAutoPlayRequested(true);
+    try { (window as any).adsbygoogle = (window as any).adsbygoogle || []; (window as any).adsbygoogle.push({}); } catch (e) {}
+    try { window.history.pushState({ player: m.id }, '', `/watch/${m.id}`); } catch (e) {}
   };
 
   const handleCloseModal = () => {
@@ -1139,6 +1154,19 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {isWatching && selectedMovie && (
+        <MoviePlayer
+          movie={selectedMovie}
+          autoPlayRequested={autoPlayRequested}
+          onAutoPlayHandled={() => setAutoPlayRequested(false)}
+          onClose={() => {
+            setIsWatching(false);
+            setSelectedMovie(null);
+            try { window.history.replaceState({}, '', '/'); } catch (e) {}
+          }}
+        />
       )}
 
       {/* Search Ad Modal */}

@@ -13,11 +13,13 @@ interface MoviePlayerProps {
     year: string;
   } | null;
   onClose: () => void;
+  autoPlayRequested?: boolean;
+  onAutoPlayHandled?: () => void;
 }
 
 type PlayerMode = 'theater' | 'mini' | 'minimized';
 
-export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
+export function MoviePlayer({ movie, onClose, autoPlayRequested, onAutoPlayHandled }: MoviePlayerProps) {
   const [mode, setMode] = useState<PlayerMode>('theater');
   const [showControls, setShowControls] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -40,6 +42,20 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
 
   // Load saved position from localStorage
   useEffect(() => {
+    // Attempt to auto-play when parent indicates user initiated a watch action
+    if (autoPlayRequested && videoRef.current) {
+      const playPromise = videoRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            try { onAutoPlayHandled && onAutoPlayHandled(); } catch (e) {}
+          })
+          .catch(err => {
+            try { onAutoPlayHandled && onAutoPlayHandled(); } catch (e) {}
+            console.debug('Autoplay prevented on open:', err);
+          });
+      }
+    }
     const saved = localStorage.getItem('minimizedPlayerPosition');
     if (saved) {
       try {
