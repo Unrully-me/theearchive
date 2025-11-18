@@ -13,13 +13,11 @@ interface MoviePlayerProps {
     year: string;
   } | null;
   onClose: () => void;
-  autoPlayRequested?: boolean;
-  onAutoPlayHandled?: () => void;
 }
 
 type PlayerMode = 'theater' | 'mini' | 'minimized';
 
-export function MoviePlayer({ movie, onClose, autoPlayRequested, onAutoPlayHandled }: MoviePlayerProps) {
+export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
   const [mode, setMode] = useState<PlayerMode>('theater');
   const [showControls, setShowControls] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -42,20 +40,6 @@ export function MoviePlayer({ movie, onClose, autoPlayRequested, onAutoPlayHandl
 
   // Load saved position from localStorage
   useEffect(() => {
-    // Attempt to auto-play when parent indicates user initiated a watch action
-    if (autoPlayRequested && videoRef.current) {
-      const playPromise = videoRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            try { onAutoPlayHandled && onAutoPlayHandled(); } catch (e) {}
-          })
-          .catch(err => {
-            try { onAutoPlayHandled && onAutoPlayHandled(); } catch (e) {}
-            console.debug('Autoplay prevented on open:', err);
-          });
-      }
-    }
     const saved = localStorage.getItem('minimizedPlayerPosition');
     if (saved) {
       try {
@@ -101,6 +85,40 @@ export function MoviePlayer({ movie, onClose, autoPlayRequested, onAutoPlayHandl
       }
     }
   }, [mode, shouldAutoPlay]);
+
+  // Autoplay requested by parent (user click). We try muted play first, then unmute.
+  useEffect(() => {
+    if (!autoPlayRequested || !videoRef.current) return;
+    const video = videoRef.current;
+    let handled = false;
+    const tryPlay = async () => {
+      try {
+        // Try muted play first (works on most browsers)
+        const prevMuted = video.muted;
+        video.muted = true;
+        await video.play();
+        setIsPlaying(true);
+        handled = true;
+        try { onAutoPlayHandled && onAutoPlayHandled(); } catch (e) {}
+        // Keep muted state until user unmutes
+        if (!prevMuted) setIsMuted(true);
+      } catch (err) {
+        console.debug('Muted autoplay blocked, trying normal play', err);
+        try {
+          video.muted = false;
+          await video.play();
+          setIsPlaying(true);
+          handled = true;
+          try { onAutoPlayHandled && onAutoPlayHandled(); } catch (e) {}
+        } catch (err2) {
+          console.debug('Autoplay prevented:', err2);
+          try { onAutoPlayHandled && onAutoPlayHandled(); } catch (e) {}
+        }
+      }
+    };
+    void tryPlay();
+    return () => { if (!handled) { try { onAutoPlayHandled && onAutoPlayHandled(); } catch (e) {} } };
+  }, [autoPlayRequested]);
 
   // Restore saved time when video loads
   useEffect(() => {
@@ -215,16 +233,6 @@ export function MoviePlayer({ movie, onClose, autoPlayRequested, onAutoPlayHandl
     };
   }, [mode]);
 
-  // Attempt to push AdSense ads when MoviePlayer's ad space mounts
-  useEffect(() => {
-    try {
-      (window as any).adsbygoogle = (window as any).adsbygoogle || [];
-      (window as any).adsbygoogle.push({});
-    } catch (e) {
-      // ignore errors in dev or when ad-client not configured
-    }
-  }, []);
-
   // Video event handlers
   const handlePlayPause = (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -318,7 +326,6 @@ export function MoviePlayer({ movie, onClose, autoPlayRequested, onAutoPlayHandl
       {mode === 'theater' && (
         <div 
           className="fixed inset-0 bg-black z-[60] flex items-center justify-center"
-          style={{ pointerEvents: 'auto' }}
           onMouseMove={resetHideTimer}
           onTouchStart={resetHideTimer}
         >
@@ -543,16 +550,6 @@ export function MoviePlayer({ movie, onClose, autoPlayRequested, onAutoPlayHandl
                 <div className="bg-gradient-to-br from-[#1a1a1a] to-black border border-[#FFD700]/30 rounded-lg p-8 text-center">
                   <p className="text-[#FFD700] font-bold text-lg mb-2">Advertisement Space</p>
                   <p className="text-gray-400 text-sm">Ads keep THEE ARCHIVE free for everyone</p>
-                  <div className="mt-4">
-                    <ins className="adsbygoogle"
-                      style={{ display: 'block' }}
-                      data-ad-client={(window as any).AD_SETTINGS?.client || 'ca-pub-5559193988562698'}
-                      data-ad-slot={(window as any).AD_SETTINGS?.playerSlot || '3456789012'}
-                      data-ad-format="auto"
-                      data-full-width-responsive="true"
-                      data-adtest={typeof window !== 'undefined' && window.location.hostname.includes('localhost') ? 'on' : undefined}
-                    ></ins>
-                  </div>
                 </div>
               </div>
             </div>
