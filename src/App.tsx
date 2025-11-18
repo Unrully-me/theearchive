@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import CookieConsent from './components/CookieConsent';
-import { MoviePlayer } from './components/MoviePlayer';
-import { Film, Menu, X, Download, Eye, Lock, Plus, Edit2, Trash2, Save, Search, DollarSign, Play } from 'lucide-react';
+import { Film, Menu, X, Download, Eye, Lock, Plus, Edit2, Trash2, Save, Search, DollarSign } from 'lucide-react';
 import { projectId, publicAnonKey } from './utils/supabase/info';
 
 interface Movie {
@@ -18,34 +17,20 @@ interface Movie {
 
 export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [movies, setMovies] = useState([] as Movie[]);
+  const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedMovie, setSelectedMovie] = useState(null as Movie | null);
+  const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [showAdModal, setShowAdModal] = useState(false);
   const [adCountdown, setAdCountdown] = useState(50);
   const [downloadReady, setDownloadReady] = useState(false);
-  const [isWatching, setIsWatching] = useState(false);
-  const [autoPlayRequested, setAutoPlayRequested] = useState(false);
   
   // Admin Portal States
   const [redDotClicks, setRedDotClicks] = useState(0);
   const [showAdminPortal, setShowAdminPortal] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
-  const [adminTab, setAdminTab] = useState('add' as 'add' | 'edit' | 'ads');
-  const [editingMovie, setEditingMovie] = useState(null as Movie | null);
-  interface AdminFormData {
-    title: string;
-    description: string;
-    videoUrl: string;
-    thumbnailUrl: string;
-    genre: string;
-    year: string;
-    type: string;
-    fileSize: string;
-    shortUrl?: string;
-  }
-
+  const [adminTab, setAdminTab] = useState<'add' | 'edit' | 'ads'>('add');
+  const [editingMovie, setEditingMovie] = useState<Movie | null>(null);
   const [adminFormData, setAdminFormData] = useState({
     title: '',
     description: '',
@@ -65,7 +50,7 @@ export default function App() {
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchAdCountdown, setSearchAdCountdown] = useState(15);
   const [searchReady, setSearchReady] = useState(false);
-  const [searchResults, setSearchResults] = useState([] as Movie[]);
+  const [searchResults, setSearchResults] = useState<Movie[]>([]);
   const [lastSearch, setLastSearch] = useState('');
 
   const API_URL = `https://${projectId}.supabase.co/functions/v1/make-server-4d451974`;
@@ -83,10 +68,35 @@ export default function App() {
     }
   }, [showAdModal, adCountdown]);
 
-  // Advertising is now handled by Google Auto Ads; we keep a minimal client push
-  // on user-driven actions (download/watch) to increase the chance Google
-  // will display an ad. We removed inline ad placeholders so Google can
-  // control placement site-wide.
+  // Push AdSense ad when ad modal opens
+  useEffect(() => {
+    if (!showAdModal) return;
+    // Give the DOM a moment to mount the ad placeholder
+    const t = setTimeout(() => {
+      try {
+        (window as any).adsbygoogle = (window as any).adsbygoogle || [];
+        (window as any).adsbygoogle.push({});
+      } catch (e) {
+        // Ad push may fail when ad-client not set; ignore in dev
+        // console.debug('adsbygoogle push failed', e);
+      }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [showAdModal]);
+
+  // Push AdSense for search modal
+  useEffect(() => {
+    if (!showSearchModal) return;
+    const t = setTimeout(() => {
+      try {
+        (window as any).adsbygoogle = (window as any).adsbygoogle || [];
+        (window as any).adsbygoogle.push({});
+      } catch (e) {
+        // ignore
+      }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [showSearchModal]);
 
   // Search ad countdown timer
   useEffect(() => {
@@ -103,39 +113,9 @@ export default function App() {
   useEffect(() => {
     fetchMovies();
     fetchAdSettings();
-    // If ?admin=1 is present in the URL, open the admin portal (useful for testing).
-    try {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('admin') === '1') {
-        openAdminPortal();
-        // hide other overlays so admin portal is visible
-        setShowAdModal(false);
-        setShowSearchModal(false);
-      }
-    } catch (e) {}
-    // Also respect a persistent admin flag in localStorage (useful on deployed sites where query params might be removed)
-    try {
-      if (localStorage.getItem('thee_admin') === '1') openAdminPortal();
-    } catch (e) {}
-
-    // Close ad modal when the user uses browser back (popstate) so they don't get stuck
-    const onPop = () => {
-      if (showAdModal) {
-        setShowAdModal(false);
-        setSelectedMovie(null);
-        return;
-      }
-      if (isWatching) {
-        setIsWatching(false);
-        setSelectedMovie(null);
-        return;
-      }
-    };
-    window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
   }, []);
 
-  const [adSettings, setAdSettings] = useState({} as any);
+  const [adSettings, setAdSettings] = useState<any>({});
 
   const fetchAdSettings = async () => {
     try {
@@ -144,17 +124,17 @@ export default function App() {
           Authorization: `Bearer ${publicAnonKey}`,
         },
       });
-      // read as text then attempt to parse JSON; avoids calling res.json() then res.text() which reads body twice
-      const rawText = await res.text();
+      // parse JSON but fall back to text for non-JSON responses
       let data: any = null;
       try {
-        data = rawText ? JSON.parse(rawText) : null;
+        data = await res.json();
       } catch (parseErr) {
-        console.warn('fetchAdSettings: non-JSON response', rawText);
+        const text = await res.text();
+        console.warn('fetchAdSettings: non-JSON response', text);
         if (res.status === 404) {
           throw new Error('Settings endpoint not found (404). You may need to redeploy your Supabase function.');
         } else {
-          throw new Error('Failed to parse settings response: ' + rawText);
+          throw new Error('Failed to parse settings response: ' + text);
         }
       }
       if (data && data.success) {
@@ -180,17 +160,16 @@ export default function App() {
         },
         body: JSON.stringify({ settings }),
       });
-      // read text then try parse; prevents stream already read error
-      const rawSaveText = await res.text();
       let json: any = null;
       try {
-        json = rawSaveText ? JSON.parse(rawSaveText) : null;
+        json = await res.json();
       } catch (parseErr) {
-        console.warn('saveAdSettings: non-JSON response', rawSaveText);
+        const text = await res.text();
+        console.warn('saveAdSettings: non-JSON response', text);
         if (res.status === 404) {
           throw new Error('Settings endpoint not found (404). Redeploy the Supabase function.');
         } else {
-          throw new Error('Failed to parse save response: ' + rawSaveText);
+          throw new Error('Failed to parse save response: ' + text);
         }
       }
       if (json && json.success) {
@@ -219,9 +198,7 @@ export default function App() {
         },
       });
       console.log('Response status:', response.status);
-      const raw = await response.text();
-      let data: any = null;
-      try { data = raw ? JSON.parse(raw) : null; } catch (parseErr) { console.warn('handleAddMovie: non-JSON response', raw); alert('Failed to add movie (unexpected response): ' + raw); return; }
+      const data = await response.json();
       console.log('Response data:', data);
       if (data.success) {
         setMovies(data.movies);
@@ -241,89 +218,25 @@ export default function App() {
     setShowAdModal(true);
     setAdCountdown(50);
     setDownloadReady(false);
-    // Removed older ad delay logic. Signal ad network to refresh
-    // or insert an ad. This relies on Google Auto Ads being configured on
-    // the site to decide where the ad should show.
-    try {
-      (window as any).adsbygoogle = (window as any).adsbygoogle || [];
-      (window as any).adsbygoogle.push({});
-    } catch (e) {}
-    // Push a shallow history entry so the browser Back closes the modal instead of going to a stale page
-    try {
-      window.history.pushState({ modal: movie.id }, '', `/movie/${movie.id}`);
-    } catch (e) { /* ignore */ }
   };
 
   const handleDownload = () => {
     if (!selectedMovie) return;
     
     // Direct download from AWS
-    // First attempt: programmatic anchor click (works when server sets CORS and Content-Disposition correctly)
-    const directDownload = () => {
-      const link = document.createElement('a');
-      link.href = selectedMovie.videoUrl;
-      link.download = `${selectedMovie.title}.mp4`;
-      link.target = '_blank';
-      document.body.appendChild(link);
-      try { link.click(); } catch (e) { console.warn('Anchor click failed', e); }
-      document.body.removeChild(link);
-    };
-
-    // If direct download doesn't start (cross-origin download attribute ignored), fetch and create Object URL as fallback
-    const blobFallback = async () => {
-      try {
-        const resp = await fetch(selectedMovie.videoUrl, { method: 'GET', mode: 'cors' });
-        if (!resp.ok) throw new Error(`Download failed: ${resp.status}`);
-        const blob = await resp.blob();
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${selectedMovie.title}.mp4`;
-        document.body.appendChild(link);
-        try { link.click(); } catch (e) { console.warn('Blob anchor click failed', e); }
-        document.body.removeChild(link);
-        // release memory after some time
-        setTimeout(() => URL.revokeObjectURL(url), 60 * 1000);
-        return true;
-      } catch (err: any) {
-        console.error('Fetch fallback failed', err);
-        try { window.open(selectedMovie.videoUrl, '_blank', 'noopener'); } catch (e) {}
-        return false;
-      }
-    };
-
-    // Try direct anchor, then if not, fallback to blob approach
-    directDownload();
-    // slight delay; after the click, attempt fallback to stream if the user didn't get a download
-    setTimeout(async () => {
-      // The fallback is safe to run even if direct succeeded; it will simply create another tab or trigger a download
-      await blobFallback();
-    }, 1500);
-    // Signal Google to refresh ads on download
-    try { (window as any).adsbygoogle = (window as any).adsbygoogle || []; (window as any).adsbygoogle.push({}); } catch (e) {}
-    // Trigger an ad refresh when user downloads content
-    try { (window as any).adsbygoogle = (window as any).adsbygoogle || []; (window as any).adsbygoogle.push({}); } catch (e) {}
+    const link = document.createElement('a');
+    link.href = selectedMovie.videoUrl;
+    link.download = `${selectedMovie.title}.mp4`;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     
     // Close modal after download starts
     setTimeout(() => {
       setShowAdModal(false);
       setSelectedMovie(null);
     }, 500);
-  };
-
-  const handleWatch = (movie?: Movie) => {
-    // allow calling with a movie from the grid (direct watch) or when selectedMovie is already set
-    const m = movie || selectedMovie;
-    if (!m) return;
-    setSelectedMovie(m);
-    setShowAdModal(false);
-    setIsWatching(true);
-    // Signal the player that this open was triggered by a user click so it can try to autoplay
-    try { setAutoPlayRequested(true); } catch (e) {}
-    // Trigger an ad run when the user starts watching
-    try { (window as any).adsbygoogle = (window as any).adsbygoogle || []; (window as any).adsbygoogle.push({}); } catch (e) {}
-    // Push history entry so back closes player
-    try { window.history.pushState({ player: m.id }, '', `/watch/${m.id}`); } catch (e) {}
   };
 
   const handleCloseModal = () => {
@@ -333,9 +246,6 @@ export default function App() {
     setSelectedMovie(null);
     setAdCountdown(50);
     setDownloadReady(false);
-    // reset history entry
-    try { window.history.replaceState({}, '', '/'); } catch (e) { /* ignore */ }
-    try { clearTimeout((window as any)._thee_ad_timer); } catch (e) {}
   };
 
   // Admin Portal Functions
@@ -345,9 +255,6 @@ export default function App() {
     
     if (newClickCount === 6) {
       setShowAdminPortal(true);
-      // Make sure any other UI overlays are hidden when admin portal shows
-      setShowAdModal(false);
-      setShowSearchModal(false);
       setRedDotClicks(0);
     }
     
@@ -355,50 +262,16 @@ export default function App() {
     setTimeout(() => setRedDotClicks(0), 2000);
   };
 
-  // Support long press on the red dot to open admin in deployed builds
-  const [redDotLongPressTimer, setRedDotLongPressTimer] = useState(null as number | null);
-
-  const startRedDotPress = () => {
-    try {
-      const id = window.setTimeout(() => {
-        openAdminPortal();
-      }, 1500);
-      setRedDotLongPressTimer(id as unknown as number);
-    } catch (e) {}
-  };
-
-  const endRedDotPress = () => {
-    if (redDotLongPressTimer) {
-      clearTimeout(redDotLongPressTimer);
-      setRedDotLongPressTimer(null);
-    }
-  };
-
-  // Open admin portal via a single entrypoint for reuse
-  const openAdminPortal = () => {
-    setShowAdminPortal(true);
-    setShowAdModal(false);
-    setShowSearchModal(false);
-    setAdminTab('add');
-    try { localStorage.setItem('thee_admin', '1'); } catch (e) {}
-  };
-
-  const closeAdminPortal = () => {
-    setShowAdminPortal(false);
-    try { localStorage.removeItem('thee_admin'); } catch (e) {}
-  };
-
   const handleAdminLogin = () => {
     if (adminPassword === ADMIN_PASSWORD) {
       setIsAdminAuthenticated(true);
-      try { localStorage.setItem('thee_admin', '1'); } catch (e) {}
     } else {
       alert('Incorrect password!');
     }
   };
 
   const handleAdminFormChange = (field: string, value: string) => {
-    setAdminFormData((prev: AdminFormData) => ({ ...prev, [field]: value }));
+    setAdminFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleGenerateShortLink = async () => {
@@ -410,14 +283,14 @@ export default function App() {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${publicAnonKey}` },
         body: JSON.stringify({ url: adminFormData.videoUrl, adminPassword: ADMIN_PASSWORD })
       });
-      // read text then parse JSON to avoid double-body read
-      const raw = await res.text();
+      // try to parse JSON but handle non-JSON gracefully
       let j = null;
-      try { j = raw ? JSON.parse(raw) : null; } catch (parseErr) {
-        return alert('Failed to create short link (unexpected response): ' + raw);
+      try { j = await res.json(); } catch (parseErr) {
+        const text = await res.text();
+        return alert('Failed to create short link (unexpected response): ' + text);
       }
       if (!j.success) return alert('Failed to create short link: ' + (j.error || 'unknown'));
-      setAdminFormData((prev: AdminFormData) => ({ ...prev, shortUrl: j.shortUrl }));
+      setAdminFormData(prev => ({ ...prev, shortUrl: j.shortUrl }));
       alert('Short link created: ' + j.shortUrl);
     } catch (e: any) {
       console.error('Shorten failed:', e);
@@ -430,9 +303,7 @@ export default function App() {
       try {
         const code = adminFormData.shortUrl.split('/s/').pop();
         const res = await fetch(`${API_URL}/shorts/${code}/stats`, { headers: { Authorization: `Bearer ${publicAnonKey}` } });
-        const raw = await res.text();
-        let j: any = null;
-        try { j = raw ? JSON.parse(raw) : null; } catch (e) { return alert('Failed to fetch stats (unexpected response): ' + raw); }
+        const j = await res.json();
         if (!j.success) return alert('No stats found: ' + (j.error || 'unknown'));
         alert(`Short link visits: ${j.stats.count || 0}\nLast visit: ${j.stats.lastVisit || 'never'}`);
       } catch (e: any) {
@@ -470,9 +341,7 @@ export default function App() {
         body: JSON.stringify(adminFormData),
       });
 
-      const rawMovies = await response.text();
-      let data: any = null;
-      try { data = rawMovies ? JSON.parse(rawMovies) : null; } catch (parseErr) { console.warn('fetchMovies: non-JSON response', rawMovies); }
+      const data = await response.json();
       if (data.success) {
         alert('Movie added successfully!');
         setAdminFormData({
@@ -507,7 +376,7 @@ export default function App() {
       genre: movie.genre,
       year: movie.year,
       type: movie.type,
-      fileSize: movie?.fileSize || '',
+      fileSize: movie.fileSize || '',
       shortUrl: (movie as any).shortUrl || ''
     });
     setAdminTab('add');
@@ -539,9 +408,7 @@ export default function App() {
         body: JSON.stringify(adminFormData),
       });
 
-      const raw = await response.text();
-      let data: any = null;
-      try { data = raw ? JSON.parse(raw) : null; } catch (parseErr) { console.warn('handleUpdateMovie: non-JSON response', raw); alert('Failed to update movie (unexpected response): ' + raw); return; }
+      const data = await response.json();
       if (data.success) {
         alert('Movie updated successfully!');
         setEditingMovie(null);
@@ -586,9 +453,7 @@ export default function App() {
         },
       });
 
-      const raw = await response.text();
-      let data: any = null;
-      try { data = raw ? JSON.parse(raw) : null; } catch (parseErr) { console.warn('handleDeleteMovie: non-JSON response', raw); alert('Failed to delete movie (unexpected response): ' + raw); return; }
+      const data = await response.json();
       if (data.success) {
         alert('Movie deleted successfully!');
         fetchMovies();
@@ -602,7 +467,7 @@ export default function App() {
   };
 
   // Search Functions
-  const handleSearchChange = (e: any) => {
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
   };
 
@@ -613,7 +478,7 @@ export default function App() {
     }
 
     // Filter movies
-    const filteredMovies = movies.filter((movie: Movie) =>
+    const filteredMovies = movies.filter(movie =>
       movie.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       movie.genre.toLowerCase().includes(searchQuery.toLowerCase()) ||
       movie.year.includes(searchQuery)
@@ -637,43 +502,19 @@ export default function App() {
     setSearchReady(false);
     setSearchResults(filteredMovies);
     setLastSearch(searchQuery);
-    // Removed inline search ad timer; Google Auto Ads should control placement.
   };
 
   const handleSearchDownload = () => {
     if (!selectedMovie) return;
-    // Try anchor + blob fallback like the regular download flow
-    const directDownload = () => {
-      const link = document.createElement('a');
-      link.href = selectedMovie.videoUrl;
-      link.download = `${selectedMovie.title}.mp4`;
-      link.target = '_blank';
-      document.body.appendChild(link);
-      try { link.click(); } catch (e) { console.warn('Anchor click failed (search):', e); }
-      document.body.removeChild(link);
-    };
-
-    const blobFallback = async () => {
-      try {
-        const resp = await fetch(selectedMovie.videoUrl, { method: 'GET', mode: 'cors' });
-        if (!resp.ok) throw new Error(`Download failed: ${resp.status}`);
-        const blob = await resp.blob();
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${selectedMovie.title}.mp4`;
-        document.body.appendChild(link);
-        try { link.click(); } catch (e) { console.warn('Blob anchor click failed (search)', e); }
-        document.body.removeChild(link);
-        setTimeout(() => URL.revokeObjectURL(url), 60 * 1000);
-      } catch (err: any) {
-        console.error('Fetch fallback failed (search):', err);
-        try { window.open(selectedMovie.videoUrl, '_blank', 'noopener'); } catch (e) {}
-      }
-    };
-
-    directDownload();
-    setTimeout(() => blobFallback(), 1500);
+    
+    // Direct download from AWS
+    const link = document.createElement('a');
+    link.href = selectedMovie.videoUrl;
+    link.download = `${selectedMovie.title}.mp4`;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     
     // Close modal after download starts
     setTimeout(() => {
@@ -689,7 +530,6 @@ export default function App() {
             setSearchAdCountdown(15);
             setSearchReady(false);
             setSearchResults([]);
-            try { clearTimeout((window as any)._thee_search_ad_timer); } catch (e) {}
   };
 
   return (
@@ -700,7 +540,7 @@ export default function App() {
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/95 backdrop-blur-sm p-4">
           <div className="relative max-w-5xl w-full max-h-[90vh] overflow-y-auto bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] rounded-2xl border-2 border-[#FFD700]/30">
                 {/* Sticky footer with download button to keep visible */}
-                <div className="mt-6 absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 pt-4 -mx-6 sm:-mx-8 px-6 sm:px-8 pb-6 z-[90]">
+                <div className="mt-6 sticky bottom-0 bg-gradient-to-t from-black/80 pt-4 -mx-6 sm:-mx-8 px-6 sm:px-8 pb-6">
                   <div className="max-w-3xl mx-auto">
                     <div className="flex flex-col sm:flex-row items-center sm:items-end gap-3">
                       <button
@@ -713,26 +553,26 @@ export default function App() {
                         }`}
                       >
                         <Download className="w-6 h-6" />
-                        {downloadReady ? 'GET CONTENT' : 'PREPARING CONTENT...'}
+                        {downloadReady ? 'DOWNLOAD NOW' : 'PREPARING DOWNLOAD...'}
                       </button>
 
-                      {selectedMovie?.fileSize && (
-                        <p className="text-center text-gray-400 text-sm mt-2 sm:mt-0 sm:ml-4">File size: {selectedMovie?.fileSize}</p>
+                      {selectedMovie.fileSize && (
+                        <p className="text-center text-gray-400 text-sm mt-2 sm:mt-0 sm:ml-4">File size: {selectedMovie.fileSize}</p>
                       )}
                     </div>
                   </div>
                 </div>
                 {/* Admin Portal Login / Auth state */}
                 {!isAdminAuthenticated ? (
-                  <div className="p-4 sm:p-6">
+                  <div className="p-6 sm:p-8">
                     <h2 className="text-3xl font-black mb-2 bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF4500] bg-clip-text text-transparent">ADMIN PORTAL</h2>
                     <p className="text-gray-400 mb-8">Enter password to continue</p>
 
                     <input
                   type="password"
                   value={adminPassword}
-                  onChange={(e: any) => setAdminPassword(e.target.value)}
-                  onKeyPress={(e: any) => e.key === 'Enter' && handleAdminLogin()}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleAdminLogin()}
                   placeholder="Enter password"
                   className="w-full max-w-md px-4 py-3 bg-black/50 border-2 border-[#FFD700]/30 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#FFD700] mb-4"
                 />
@@ -745,7 +585,7 @@ export default function App() {
                 </button>
                   </div>
                 ) : (
-              <div className="p-4 sm:p-6">
+              <div className="p-6 sm:p-8">
                 {/* Admin Header */}
                 <div className="mb-6">
                   <h2 className="text-3xl font-black mb-2 bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF4500] bg-clip-text text-transparent">
@@ -753,19 +593,6 @@ export default function App() {
                   </h2>
                   <p className="text-gray-400">Manage your movie library</p>
                 </div>
-                {isAdminAuthenticated && (
-                  <div className="flex items-center justify-end gap-2">
-                    <button
-                      onClick={() => {
-                        setIsAdminAuthenticated(false);
-                        closeAdminPortal();
-                      }}
-                      className="px-4 py-2 bg-red-600 rounded text-white font-bold"
-                    >
-                      LOGOUT
-                    </button>
-                  </div>
-                )}
 
                 {/* Tabs */}
                 <div className="flex gap-4 mb-6 border-b border-[#FFD700]/20">
@@ -825,7 +652,7 @@ export default function App() {
                       <input
                         type="text"
                         value={adminFormData.title}
-                        onChange={(e: any) => handleAdminFormChange('title', e.target.value)}
+                        onChange={(e) => handleAdminFormChange('title', e.target.value)}
                         className="w-full px-4 py-3 bg-black/50 border-2 border-[#FFD700]/30 rounded-xl text-white focus:outline-none focus:border-[#FFD700]"
                         placeholder="Enter movie title"
                       />
@@ -870,7 +697,7 @@ export default function App() {
                       <label className="block text-sm text-gray-400 mb-2">Description</label>
                       <textarea
                         value={adminFormData.description}
-                        onChange={(e: any) => handleAdminFormChange('description', e.target.value)}
+                        onChange={(e) => handleAdminFormChange('description', e.target.value)}
                         className="w-full px-4 py-3 bg-black/50 border-2 border-[#FFD700]/30 rounded-xl text-white focus:outline-none focus:border-[#FFD700] min-h-[100px]"
                         placeholder="Enter movie description"
                       />
@@ -882,7 +709,7 @@ export default function App() {
                         <input
                           type="url"
                           value={adminFormData.videoUrl}
-                          onChange={(e: any) => handleAdminFormChange('videoUrl', e.target.value)}
+                          onChange={(e) => handleAdminFormChange('videoUrl', e.target.value)}
                           className="w-full px-4 py-3 bg-black/50 border-2 border-[#FFD700]/30 rounded-xl text-white focus:outline-none focus:border-[#FFD700]"
                           placeholder="https://..."
                         />
@@ -893,7 +720,7 @@ export default function App() {
                         <input
                           type="url"
                           value={adminFormData.thumbnailUrl}
-                          onChange={(e: any) => handleAdminFormChange('thumbnailUrl', e.target.value)}
+                          onChange={(e) => handleAdminFormChange('thumbnailUrl', e.target.value)}
                           className="w-full px-4 py-3 bg-black/50 border-2 border-[#FFD700]/30 rounded-xl text-white focus:outline-none focus:border-[#FFD700]"
                           placeholder="https://..."
                         />
@@ -906,7 +733,7 @@ export default function App() {
                         <input
                           type="text"
                           value={adminFormData.genre}
-                          onChange={(e: any) => handleAdminFormChange('genre', e.target.value)}
+                          onChange={(e) => handleAdminFormChange('genre', e.target.value)}
                           className="w-full px-4 py-3 bg-black/50 border-2 border-[#FFD700]/30 rounded-xl text-white focus:outline-none focus:border-[#FFD700]"
                           placeholder="Action, Comedy..."
                         />
@@ -917,7 +744,7 @@ export default function App() {
                         <input
                           type="text"
                           value={adminFormData.year}
-                          onChange={(e: any) => handleAdminFormChange('year', e.target.value)}
+                          onChange={(e) => handleAdminFormChange('year', e.target.value)}
                           className="w-full px-4 py-3 bg-black/50 border-2 border-[#FFD700]/30 rounded-xl text-white focus:outline-none focus:border-[#FFD700]"
                           placeholder="2024"
                         />
@@ -928,7 +755,7 @@ export default function App() {
                         <input
                           type="text"
                           value={adminFormData.fileSize}
-                          onChange={(e: any) => handleAdminFormChange('fileSize', e.target.value)}
+                          onChange={(e) => handleAdminFormChange('fileSize', e.target.value)}
                           className="w-full px-4 py-3 bg-black/50 border-2 border-[#FFD700]/30 rounded-xl text-white focus:outline-none focus:border-[#FFD700]"
                           placeholder="1.5 GB"
                         />
@@ -939,7 +766,7 @@ export default function App() {
                       <label className="block text-sm text-gray-400 mb-2">Type</label>
                       <select
                         value={adminFormData.type}
-                        onChange={(e: any) => handleAdminFormChange('type', e.target.value)}
+                        onChange={(e) => handleAdminFormChange('type', e.target.value)}
                         className="w-full px-4 py-3 bg-black/50 border-2 border-[#FFD700]/30 rounded-xl text-white focus:outline-none focus:border-[#FFD700]"
                       >
                         <option value="movie">Movie</option>
@@ -955,7 +782,7 @@ export default function App() {
                       <input
                         type="password"
                         value={confirmPassword}
-                        onChange={(e: any) => {
+                        onChange={(e) => {
                           setConfirmPassword(e.target.value);
                           setShowPasswordError(false);
                         }}
@@ -1006,7 +833,7 @@ export default function App() {
                     {movies.length === 0 ? (
                       <p className="text-center text-gray-400 py-10">No movies in database</p>
                     ) : (
-                      movies.map((movie: Movie) => (
+                      movies.map((movie) => (
                         <div
                           key={movie.id}
                           className="p-4 bg-black/30 border border-[#FFD700]/20 rounded-xl flex items-center gap-4 hover:border-[#FFD700]/50 transition-all"
@@ -1026,8 +853,8 @@ export default function App() {
                           <div className="flex-1">
                             <h4 className="font-black text-[#FFD700] mb-1">{movie.title}</h4>
                             <p className="text-sm text-gray-400">{movie.year} • {movie.genre}</p>
-                            {movie?.fileSize && (
-                              <p className="text-xs text-gray-500 mt-1">{movie?.fileSize}</p>
+                            {movie.fileSize && (
+                              <p className="text-xs text-gray-500 mt-1">{movie.fileSize}</p>
                             )}
                             {(movie as any).shortUrl && (
                               <div className="mt-2 flex items-center gap-2">
@@ -1079,7 +906,7 @@ export default function App() {
                       <input
                         type="text"
                         value={adSettings.client || ''}
-                        onChange={(e: any) => setAdSettings({ ...adSettings, client: e.target.value })}
+                        onChange={(e) => setAdSettings({ ...adSettings, client: e.target.value })}
                         className="w-full px-4 py-3 bg-black/50 border-2 border-[#FFD700]/30 rounded-xl text-white focus:outline-none focus:border-[#FFD700]"
                         placeholder="ca-pub-5559193988562698"
                       />
@@ -1091,7 +918,7 @@ export default function App() {
                         <input
                           type="text"
                           value={adSettings.downloadSlot || ''}
-                          onChange={(e: any) => setAdSettings({ ...adSettings, downloadSlot: e.target.value })}
+                          onChange={(e) => setAdSettings({ ...adSettings, downloadSlot: e.target.value })}
                           className="w-full px-4 py-3 bg-black/50 border-2 border-[#FFD700]/30 rounded-xl text-white focus:outline-none focus:border-[#FFD700]"
                           placeholder="1234567890"
                         />
@@ -1102,7 +929,7 @@ export default function App() {
                         <input
                           type="text"
                           value={adSettings.searchSlot || ''}
-                          onChange={(e: any) => setAdSettings({ ...adSettings, searchSlot: e.target.value })}
+                          onChange={(e) => setAdSettings({ ...adSettings, searchSlot: e.target.value })}
                           className="w-full px-4 py-3 bg-black/50 border-2 border-[#FFD700]/30 rounded-xl text-white focus:outline-none focus:border-[#FFD700]"
                           placeholder="2345678901"
                         />
@@ -1114,7 +941,7 @@ export default function App() {
                       <input
                         type="text"
                         value={adSettings.playerSlot || ''}
-                        onChange={(e: any) => setAdSettings({ ...adSettings, playerSlot: e.target.value })}
+                        onChange={(e) => setAdSettings({ ...adSettings, playerSlot: e.target.value })}
                         className="w-full px-4 py-3 bg-black/50 border-2 border-[#FFD700]/30 rounded-xl text-white focus:outline-none focus:border-[#FFD700]"
                         placeholder="3456789012"
                       />
@@ -1142,20 +969,6 @@ export default function App() {
             )}
           </div>
         </div>
-      )}
-
-      {/* Movie Player Overlay */}
-      {isWatching && selectedMovie && (
-        <MoviePlayer
-          movie={selectedMovie}
-            autoPlayRequested={autoPlayRequested}
-            onAutoPlayHandled={() => setAutoPlayRequested(false)}
-          onClose={() => {
-            setIsWatching(false);
-            setSelectedMovie(null);
-            window.history.replaceState({}, '', '/');
-          }}
-        />
       )}
 
       {/* Ad Modal with Download */}
@@ -1195,31 +1008,34 @@ export default function App() {
 
             {/* Movie Info */}
             <div className="bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] rounded-2xl border-2 border-[#FFD700]/30 overflow-hidden">
-              {/* Compact header - removed full-size thumbnail to reduce modal height */}
-              <div className="px-6 pt-6 sm:px-8 sm:pt-8">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-lg bg-[#111827] flex items-center justify-center border border-[#FFD700]/10">
-                    <Film className="w-6 h-6 text-[#FFD700]/50" />
+              {/* Thumbnail */}
+              <div className="relative h-44 sm:h-56 md:h-64 max-h-[50vh] sm:max-h-[55vh] overflow-hidden">
+                {selectedMovie.thumbnailUrl ? (
+                  <img
+                    src={selectedMovie.thumbnailUrl}
+                    alt={selectedMovie.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-[#FFD700]/20 to-[#FF4500]/10 flex items-center justify-center">
+                    <Film className="w-20 h-20 text-[#FFD700]/50" />
                   </div>
-                  <div>
-                    <div className="text-lg font-black">{selectedMovie.title}</div>
-                    <div className="text-sm text-gray-400">{selectedMovie.year} • {selectedMovie.genre}</div>
-                  </div>
-                </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent"></div>
               </div>
 
               {/* Content */}
-              <div className="p-4 sm:p-6">
+              <div className="p-6 sm:p-8">
                 <h3 className="text-2xl sm:text-3xl font-black mb-3 bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF4500] bg-clip-text text-transparent">
                   {selectedMovie.title}
                 </h3>
                 <p className="text-gray-400 mb-2">{selectedMovie.year} • {selectedMovie.genre}</p>
                 {selectedMovie.description && (
-                  <p className="text-gray-300 mb-4 line-clamp-2">{selectedMovie.description}</p>
+                  <p className="text-gray-300 mb-6 line-clamp-3">{selectedMovie.description}</p>
                 )}
 
                 {/* Ad Space - Replace with real ad code */}
-                <div className="my-4 p-4 sm:p-6 bg-gradient-to-r from-[#FFD700]/10 to-[#FF4500]/10 rounded-xl border-2 border-[#FFD700]/20 flex flex-col items-center justify-center min-h-[80px]">
+                <div className="my-6 p-6 sm:p-8 bg-gradient-to-r from-[#FFD700]/10 to-[#FF4500]/10 rounded-xl border-2 border-[#FFD700]/20 flex flex-col items-center justify-center min-h-[140px]">
                   <div className="text-center">
                     <div className="w-16 h-16 mx-auto mb-4 bg-[#FFD700] rounded-full flex items-center justify-center animate-pulse">
                       <Eye className="w-8 h-8 text-black" />
@@ -1228,17 +1044,23 @@ export default function App() {
                       <>
                         <p className="text-[#FFD700] font-bold text-lg mb-2">Please wait...</p>
                         <p className="text-gray-400 text-sm mb-4">Your download will be ready in</p>
-                        <div className="text-3xl sm:text-4xl md:text-5xl font-black text-[#FFD700]">{adCountdown}</div>
+                        <div className="text-5xl font-black text-[#FFD700]">{adCountdown}</div>
                         <div className="mt-4">
-                          {/* Google will control ad placement. Show a neutral message */}
-                          <div className="mb-2 text-sm text-gray-500">Sponsored — supports the free movie library</div>
-                          <div className="text-gray-500 text-sm">Ads will appear as provided by Google.</div>
+                          {/* Google AdSense unit: replace data-ad-client & data-ad-slot */}
+                          <ins className="adsbygoogle"
+                            style={{ display: 'block' }}
+                            data-ad-client={adSettings.client || 'ca-pub-5559193988562698'}
+                            data-ad-slot={adSettings.downloadSlot || '1234567890'}
+                            data-ad-format="auto"
+                            data-full-width-responsive="true"
+                            data-adtest={typeof window !== 'undefined' && window.location.hostname.includes('localhost') ? 'on' : undefined}
+                          ></ins>
                         </div>
                       </>
                     ) : (
                       <>
                         <p className="text-[#FFD700] font-bold text-xl mb-2">Ready!</p>
-                        <p className="text-gray-400">Use the button below to proceed to content</p>
+                        <p className="text-gray-400">Click below to download</p>
                       </>
                     )}
                   </div>
@@ -1255,21 +1077,12 @@ export default function App() {
                   }`}
                 >
                   <Download className="w-6 h-6" />
-                  {downloadReady ? 'GET CONTENT' : 'PREPARING CONTENT...'}
+                  {downloadReady ? 'DOWNLOAD NOW' : 'PREPARING DOWNLOAD...'}
                 </button>
 
-                {/* Watch Button - streams in player overlay */}
-                <button
-                  onClick={handleWatch}
-                  className="w-full mt-3 py-3 rounded-xl font-black text-lg flex items-center justify-center gap-3 bg-[#111827] hover:bg-[#111111]/80 text-white border border-[#303134] transition-all"
-                >
-                  <Play className="w-5 h-5" />
-                  WATCH
-                </button>
-
-                {selectedMovie?.fileSize && (
+                {selectedMovie.fileSize && (
                   <p className="text-center text-gray-500 text-sm mt-3">
-                    File size: {selectedMovie?.fileSize}
+                    File size: {selectedMovie.fileSize}
                   </p>
                 )}
               </div>
@@ -1312,7 +1125,7 @@ export default function App() {
             </div>
 
             {/* Ad Content */}
-                <div className="bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] rounded-2xl border-2 border-[#FFD700]/30 overflow-hidden p-12 pb-28">
+            <div className="bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] rounded-2xl border-2 border-[#FFD700]/30 overflow-hidden p-12">
               <div className="text-center">
                 <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-[#FFD700] to-[#FFA500] rounded-full flex items-center justify-center animate-pulse shadow-lg shadow-[#FFD700]/50">
                   <Search className="w-10 h-10 text-black" />
@@ -1327,29 +1140,14 @@ export default function App() {
                     <div className="text-7xl font-black text-[#FFD700] mb-6">{searchAdCountdown}</div>
                     <div className="p-6 bg-gradient-to-r from-[#FFD700]/10 to-[#FF4500]/10 rounded-xl border-2 border-[#FFD700]/20">
                       {/* Google AdSense unit for search ads */}
-                      <div className="mb-2 text-sm text-gray-500">Sponsored — supports the free library</div>
-                      <div className="text-gray-500">Ads appear based on Google’s placement decisions.</div>
-                    </div>
-                    {/* Add a small 'popular picks' content area to avoid screens-without-content issues */}
-                    <div className="mt-6 text-left">
-                      <h4 className="text-gray-300 font-bold mb-3">Popular picks while you wait</h4>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {movies.slice(0, 6).map((m: Movie) => (
-                          <div key={m.id} className="flex items-center gap-2 p-2 bg-black/40 rounded">
-                            {m.thumbnailUrl ? (
-                              <img src={m.thumbnailUrl} alt={m.title} className="w-12 h-16 object-cover rounded" />
-                            ) : (
-                              <div className="w-12 h-16 bg-[#FFD700]/20 rounded flex items-center justify-center">
-                                <Film className="w-6 h-6 text-[#FFD700]/50" />
-                              </div>
-                            )}
-                            <div className="text-sm">
-                              <div className="font-bold line-clamp-1">{m.title}</div>
-                              <div className="text-gray-400 text-xs">{m.year}</div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      <ins className="adsbygoogle"
+                        style={{ display: 'block' }}
+                        data-ad-client={adSettings.client || 'ca-pub-5559193988562698'}
+                        data-ad-slot={adSettings.searchSlot || '2345678901'}
+                        data-ad-format="auto"
+                        data-full-width-responsive="true"
+                        data-adtest={typeof window !== 'undefined' && window.location.hostname.includes('localhost') ? 'on' : undefined}
+                      ></ins>
                     </div>
                   </>
                 ) : (
@@ -1383,16 +1181,13 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             {/* Logo - click to go home */}
-            <a href="/" onClick={(e: any) => { e.preventDefault(); window.location.replace('/'); }} className="flex items-center space-x-4 cursor-pointer">
+            <a href="/" onClick={(e) => { e.preventDefault(); window.location.replace('/'); }} className="flex items-center space-x-4 cursor-pointer">
               <div className="relative p-2 bg-gradient-to-br from-[#FFD700] to-[#FFA500] rounded-xl shadow-lg shadow-[#FFD700]/30">
                 <Film className="w-8 h-8 text-black" strokeWidth={2.5} />
                 <div 
-                  onClick={(e: any) => { e.preventDefault(); e.stopPropagation(); handleRedDotClick(); }}
-                  onPointerDown={(e: any) => { e.preventDefault(); e.stopPropagation(); startRedDotPress(); }}
-                  onPointerUp={(e: any) => { e.preventDefault(); e.stopPropagation(); endRedDotPress(); }}
-                  onPointerLeave={(e: any) => { e.preventDefault(); e.stopPropagation(); endRedDotPress(); }}
+                  onClick={(e) => { e.stopPropagation(); handleRedDotClick(); }}
                   className="absolute -top-1 -right-1 w-4 h-4 bg-[#FF4500] rounded-full border-2 border-black animate-pulse cursor-pointer hover:scale-125 transition-transform"
-                  aria-hidden="true"
+                  title="Admin Access"
                 ></div>
               </div>
               <div>
@@ -1483,7 +1278,7 @@ export default function App() {
               type="text"
               value={searchQuery}
               onChange={handleSearchChange}
-              onKeyPress={(e: any) => e.key === 'Enter' && handleSearch()}
+              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
               placeholder="Search for movies by title, genre, or year..."
               className="w-full px-6 py-4 bg-black/50 border-2 border-[#FFD700]/30 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-[#FFD700] text-lg"
             />
@@ -1518,7 +1313,7 @@ export default function App() {
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {searchResults.length === 0 && movies.map((movie: Movie, index: number) => (
+              {searchResults.length === 0 && movies.map((movie, index) => (
                 <div
                   key={movie.id}
                   onClick={() => handleMovieClick(movie)}
@@ -1529,15 +1324,6 @@ export default function App() {
                     <div className="w-16 h-16 bg-gradient-to-br from-[#FFD700] to-[#FFA500] rounded-full flex items-center justify-center shadow-2xl border-4 border-white/20 group-hover:scale-110 transition-transform">
                       <Download className="w-8 h-8 text-black" />
                     </div>
-                  </div>
-                  {/* WATCH CTA on the movie card */}
-                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
-                    <button
-                      onClick={(e: any) => { e.stopPropagation(); handleWatch(movie); }}
-                      className="px-3 py-1 bg-[#111827]/80 border border-[#FFD700]/30 rounded-lg text-sm font-bold hover:bg-[#111827]"
-                    >
-                      <Play className="w-4 h-4 inline mr-1" /> WATCH
-                    </button>
                   </div>
 
                   {/* Movie Thumbnail or Placeholder */}
@@ -1570,7 +1356,7 @@ export default function App() {
         {/* Search Results */}
         {searchResults.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {searchResults.map((movie: Movie, index: number) => (
+            {searchResults.map((movie, index) => (
               <div
                 key={movie.id}
                 onClick={() => handleMovieClick(movie)}
@@ -1578,7 +1364,7 @@ export default function App() {
               >
                 {/* Play Icon Overlay - Always visible on mobile, hover on desktop */}
                 <div className="absolute inset-0 flex items-center justify-center z-10 opacity-0 group-hover:opacity-100 sm:opacity-100 transition-opacity duration-300">
-                    <div className="w-16 h-16 bg-gradient-to-br from-[#FFD700] to-[#FFA500] rounded-full flex items-center justify-center shadow-2xl border-4 border-white/20 group-hover:scale-110 transition-transform">
+                  <div className="w-16 h-16 bg-gradient-to-br from-[#FFD700] to-[#FFA500] rounded-full flex items-center justify-center shadow-2xl border-4 border-white/20 group-hover:scale-110 transition-transform">
                     <Download className="w-8 h-8 text-black" />
                   </div>
                 </div>
@@ -1592,7 +1378,7 @@ export default function App() {
                   />
                 ) : (
                   <div className="absolute inset-0 bg-gradient-to-br from-[#FFD700]/30 via-[#FFA500]/20 to-[#FF4500]/10 flex items-center justify-center">
-                      <Film className="w-16 h-16 text-[#FFD700]/50" />
+                    <Film className="w-16 h-16 text-[#FFD700]/50" />
                   </div>
                 )}
 

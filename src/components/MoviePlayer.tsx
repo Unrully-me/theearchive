@@ -13,32 +13,30 @@ interface MoviePlayerProps {
     year: string;
   } | null;
   onClose: () => void;
-  autoPlayRequested?: boolean;
-  onAutoPlayHandled?: () => void;
 }
 
 type PlayerMode = 'theater' | 'mini' | 'minimized';
 
 export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
-  const [mode, setMode] = useState('theater' as PlayerMode);
+  const [mode, setMode] = useState<PlayerMode>('theater');
   const [showControls, setShowControls] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
-  const [position, setPosition] = useState(null as { x: number; y: number } | null);
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [playerSize, setPlayerSize] = useState({ width: 250, height: 250 });
   const [shouldAutoPlay, setShouldAutoPlay] = useState(false);
   const [savedTime, setSavedTime] = useState(0);
-  const [showSkipIndicator, setShowSkipIndicator] = useState(null as 'forward' | 'backward' | null);
+  const [showSkipIndicator, setShowSkipIndicator] = useState<'forward' | 'backward' | null>(null);
   
-  const videoRef = useRef(null as HTMLVideoElement | null);
-  const hideTimerRef = useRef(null as any);
-  const containerRef = useRef(null as any);
-  const skipIndicatorTimerRef = useRef(null as any);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const hideTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const skipIndicatorTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load saved position from localStorage
   useEffect(() => {
@@ -71,8 +69,6 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
     }
   }, [mode, position]);
 
-  // The project's event handlers are declared below; avoid duplicate declarations
-
   // Auto-resume playing after mode change if it was playing before
   useEffect(() => {
     if (shouldAutoPlay && videoRef.current) {
@@ -82,7 +78,7 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
           .then(() => {
             setShouldAutoPlay(false);
           })
-          .catch((err: any) => {
+          .catch(err => {
             console.log('Auto-play prevented:', err);
             setShouldAutoPlay(false);
           });
@@ -112,7 +108,7 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
   };
 
   // Dragging handlers
-  const handleDragStart = (e: any) => {
+  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
     if (mode !== 'minimized') return;
     
     e.stopPropagation();
@@ -202,6 +198,16 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
       }
     };
   }, [mode]);
+
+  // Attempt to push AdSense ads when MoviePlayer's ad space mounts
+  useEffect(() => {
+    try {
+      (window as any).adsbygoogle = (window as any).adsbygoogle || [];
+      (window as any).adsbygoogle.push({});
+    } catch (e) {
+      // ignore errors in dev or when ad-client not configured
+    }
+  }, []);
 
   // Video event handlers
   const handlePlayPause = (e?: React.MouseEvent) => {
@@ -296,6 +302,7 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
       {mode === 'theater' && (
         <div 
           className="fixed inset-0 bg-black z-[60] flex items-center justify-center"
+          style={{ pointerEvents: 'auto' }}
           onMouseMove={resetHideTimer}
           onTouchStart={resetHideTimer}
         >
@@ -520,6 +527,16 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
                 <div className="bg-gradient-to-br from-[#1a1a1a] to-black border border-[#FFD700]/30 rounded-lg p-8 text-center">
                   <p className="text-[#FFD700] font-bold text-lg mb-2">Advertisement Space</p>
                   <p className="text-gray-400 text-sm">Ads keep THEE ARCHIVE free for everyone</p>
+                  <div className="mt-4">
+                    <ins className="adsbygoogle"
+                      style={{ display: 'block' }}
+                      data-ad-client={(window as any).AD_SETTINGS?.client || 'ca-pub-5559193988562698'}
+                      data-ad-slot={(window as any).AD_SETTINGS?.playerSlot || '3456789012'}
+                      data-ad-format="auto"
+                      data-full-width-responsive="true"
+                      data-adtest={typeof window !== 'undefined' && window.location.hostname.includes('localhost') ? 'on' : undefined}
+                    ></ins>
+                  </div>
                 </div>
               </div>
             </div>
@@ -591,7 +608,7 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
               <div className="flex items-center justify-between pointer-events-auto">
                 <p className="text-white text-xs font-bold truncate flex-1">{movie.title}</p>
                 <button
-                  onClick={(e: any) => {
+                  onClick={(e) => {
                     e.stopPropagation();
                     onClose();
                   }}
@@ -605,7 +622,7 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
               <div className="flex items-center justify-between gap-2 pointer-events-auto">
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={(e: any) => {
+                    onClick={(e) => {
                       e.stopPropagation();
                       handleSkipBackward();
                     }}
@@ -615,7 +632,7 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
                     <SkipBack className="w-3 h-3 sm:w-4 sm:h-4" />
                   </button>
                   <button
-                    onClick={(e: any) => {
+                    onClick={(e) => {
                       e.stopPropagation();
                       handlePlayPause();
                     }}
@@ -624,7 +641,7 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
                     {isPlaying ? <Pause className="w-3 h-3 sm:w-4 sm:h-4" /> : <Play className="w-3 h-3 sm:w-4 sm:h-4" />}
                   </button>
                   <button
-                    onClick={(e: any) => {
+                    onClick={(e) => {
                       e.stopPropagation();
                       handleSkipForward();
                     }}
@@ -636,7 +653,7 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
                 </div>
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={(e: any) => {
+                    onClick={(e) => {
                       e.stopPropagation();
                       handleModeChange('mini');
                     }}
@@ -646,7 +663,7 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
                     <Minimize2 className="w-3 h-3 sm:w-4 sm:h-4" />
                   </button>
                   <button
-                    onClick={(e: any) => {
+                    onClick={(e) => {
                       e.stopPropagation();
                       handleModeChange('theater');
                     }}
