@@ -8,14 +8,14 @@
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {
+        '@supabase/supabase-js@2': '@supabase/supabase-js',
         '@jsr/supabase__supabase-js@2.49.8': '@jsr/supabase__supabase-js',
         '@': path.resolve(__dirname, './src'),
       },
     },
     build: {
-      // use a slightly narrower target so esbuild on some hosts (Vercel, old Node) is compatible
-      target: 'es2020',
-      outDir: 'build'
+      target: 'esnext',
+      outDir: 'build',
     },
     server: {
       port: 3000,

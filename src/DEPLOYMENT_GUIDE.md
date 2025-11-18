@@ -1,7 +1,7 @@
 # 🚀 THEE ARCHIVE - DEPLOYMENT GUIDE
 
 ## Project Overview
-**FREE MOVIE LIBRARY** - Luganda movie download site with:
+**FREE GANDA & CLEAR MOVIE LIBRARY** - Luganda movie download site with:
 - ✅ Supabase backend (already configured)
 - ✅ React frontend with Tailwind CSS
 - ✅ Secret admin portal (click red dot 6x, password: `0701680Kyamundu`)
@@ -101,24 +101,11 @@ git push stellar main
 
 ---
 
-## 🚀 BONUS: DEPLOYING TO VERCEL (recommended for static + backend)
-
-If you prefer Vercel for automatic builds from GitHub, add the following settings in the Vercel dashboard for your project:
-
-1. Build Command: `npm run vercel-build`  # already added to repository
-2. Output Directory: `build`
-3. Environment Variables: add `SUPABASE_URL` and `SUPABASE_ANON_KEY` as needed
-
-We also included `vercel.json` in the repo to enforce a static build that outputs to `build/`. If your Vercel build logs show a `Permission denied` error on `node_modules/.bin/vite`, changing the build command to `npm run vercel-build` will call Vite via Node and avoid that permission issue.
-
----
-
 ## 🎬 STEP 4: ADD YOUR MOVIES
 
 ### A. Access Admin Portal
 1. Visit your deployed site
 2. Click the red dot on logo 6 times
-3. Enter password: `0701680Kyamundu`
 3. Enter password: `0701680Kyamundu`
 
 ### B. Upload Movies to AWS S3
@@ -137,35 +124,6 @@ aws s3 presign s3://your-bucket-name/movies/movie.mp4 --expires-in 31536000
 - Genre, Year, File Size
 - Click "ADD MOVIE"
 
-### ✨ Update Logo & Favicon
-
-To add or change the site icon that appears on browser tabs and when users add the site to their home screen:
-
-1. Prepare your logo in multiple sizes: 16x16, 32x32 (favicon), 192x192 and 512x512 (PWA). Use PNG or SVG.
-     - Recommended: `favicon-16x16.png`, `favicon-32x32.png`, `logo-192.png`, `logo-512.png`.
-2. Place the files in the `public/` folder so Vite will include them during the build. For example:
-     - `public/favicon-32x32.png`
-     - `public/favicon-16x16.png`
-     - `public/logo-192.png`
-     - `public/logo-512.png`
-3. Ensure `index.html` contains the correct meta and link tags (we added a placeholder `logo.svg` and `manifest.json` as examples):
-```html
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-<link rel="apple-touch-icon" href="/logo-192.png"> 
-<link rel="manifest" href="/manifest.json" />
-```
-4. Rebuild and redeploy using Vercel or your hosting provider; your new logos will appear automatically after deployment.
-
-#### Short Links
-
-If you want to generate short links for sharing, follow these optional steps:
-
-1. In the Supabase function environment variables add:
-     - `ADMIN_PASSWORD` — the same password used for the admin portal, to restrict creation of short links (optional).
-     - `DEPLOY_HOST` — your site domain (example.com) so the server returns full `https://example.com/s/<code>` short links.
-2. Click the **Generate Short Link** button in the Admin Portal while adding a movie. The short link will be stored in the movie metadata and returned in the UI.
-
 ---
 
 ## 🎯 STEP 5: INTEGRATE GOOGLE ADSENSE
@@ -179,7 +137,7 @@ In `/App.tsx`, find the search ad modal section around line 920:
   {/* REPLACE THIS WITH YOUR GOOGLE ADSENSE CODE */}
   <ins className="adsbygoogle"
        style={{ display: 'block' }}
-     data-ad-client="ca-pub-5559193988562698"
+       data-ad-client="ca-pub-XXXXXXXXXX"
        data-ad-slot="YYYYYYYYYY"
        data-ad-format="auto"></ins>
   <script>
@@ -193,9 +151,9 @@ In `/App.tsx`, find the download ad modal section around line 820:
 ```tsx
 <div className="my-6 p-8 bg-gradient-to-r from-[#FFD700]/10 to-[#FF4500]/10 rounded-xl">
   {/* REPLACE THIS WITH YOUR GOOGLE ADSENSE CODE */}
-     <ins className="adsbygoogle"
+  <ins className="adsbygoogle"
        style={{ display: 'block' }}
-               data-ad-client="ca-pub-5559193988562698"
+       data-ad-client="ca-pub-XXXXXXXXXX"
        data-ad-slot="YYYYYYYYYY"
        data-ad-format="auto"></ins>
   <script>

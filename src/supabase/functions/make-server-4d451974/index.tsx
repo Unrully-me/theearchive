@@ -27,12 +27,12 @@ app.use(
 );
 
 // Health check endpoint
-app.get("/make-server-4d451974/health", (c) => {
+app.get("/health", (c) => {
   return c.json({ status: "ok" });
 });
 
 // Get all movies
-app.get("/make-server-4d451974/movies", async (c) => {
+app.get("/movies", async (c) => {
   try {
     console.log("Fetching movies from database...");
     const moviesData = await kv.getByPrefix("movie:");
@@ -51,7 +51,7 @@ app.get("/make-server-4d451974/movies", async (c) => {
 });
 
 // Get single movie by ID
-app.get("/make-server-4d451974/movies/:id", async (c) => {
+app.get("/movies/:id", async (c) => {
   try {
     const id = c.req.param("id");
     const movie = await kv.get(`movie:${id}`);
@@ -66,7 +66,7 @@ app.get("/make-server-4d451974/movies/:id", async (c) => {
 });
 
 // Add new movie
-app.post("/make-server-4d451974/movies", async (c) => {
+app.post("/movies", async (c) => {
   try {
     const body = await c.req.json();
     const { title, description, videoUrl, thumbnailUrl, genre, year, type, fileSize } = body;
@@ -99,7 +99,7 @@ app.post("/make-server-4d451974/movies", async (c) => {
 });
 
 // Update movie
-app.put("/make-server-4d451974/movies/:id", async (c) => {
+app.put("/movies/:id", async (c) => {
   try {
     const id = c.req.param("id");
     const existingMovie = await kv.get(`movie:${id}`);
@@ -125,7 +125,7 @@ app.put("/make-server-4d451974/movies/:id", async (c) => {
 });
 
 // Delete movie
-app.delete("/make-server-4d451974/movies/:id", async (c) => {
+app.delete("/movies/:id", async (c) => {
   try {
     const id = c.req.param("id");
     await kv.del(`movie:${id}`);
@@ -139,7 +139,7 @@ app.delete("/make-server-4d451974/movies/:id", async (c) => {
 // ===== AUTHENTICATION ROUTES =====
 
 // Sign Up
-app.post("/make-server-4d451974/signup", async (c) => {
+app.post("/signup", async (c) => {
   try {
     const { email, password, name } = await c.req.json();
 
@@ -199,7 +199,7 @@ app.post("/make-server-4d451974/signup", async (c) => {
 });
 
 // Sign In
-app.post("/make-server-4d451974/signin", async (c) => {
+app.post("/signin", async (c) => {
   try {
     const { email, password } = await c.req.json();
 
@@ -248,7 +248,7 @@ app.post("/make-server-4d451974/signin", async (c) => {
 });
 
 // Check Auth (verify token and get user)
-app.get("/make-server-4d451974/auth/me", async (c) => {
+app.get("/auth/me", async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     
@@ -291,7 +291,7 @@ app.get("/make-server-4d451974/auth/me", async (c) => {
 // ===== ADMIN USER MANAGEMENT ROUTES =====
 
 // Get all users (admin only)
-app.get("/make-server-4d451974/admin/users", async (c) => {
+app.get("/admin/users", async (c) => {
   try {
     console.log("Fetching all users from database...");
     const usersData = await kv.getByPrefix("user:");
@@ -306,7 +306,7 @@ app.get("/make-server-4d451974/admin/users", async (c) => {
 });
 
 // Block user (admin only)
-app.post("/make-server-4d451974/admin/users/:id/block", async (c) => {
+app.post("/admin/users/:id/block", async (c) => {
   try {
     const userId = c.req.param("id");
     const userRecord = await kv.get(`user:${userId}`);
@@ -332,7 +332,7 @@ app.post("/make-server-4d451974/admin/users/:id/block", async (c) => {
 });
 
 // Unblock user (admin only)
-app.post("/make-server-4d451974/admin/users/:id/unblock", async (c) => {
+app.post("/admin/users/:id/unblock", async (c) => {
   try {
     const userId = c.req.param("id");
     const userRecord = await kv.get(`user:${userId}`);
@@ -360,7 +360,7 @@ app.post("/make-server-4d451974/admin/users/:id/unblock", async (c) => {
 // ===== BACKGROUND SETTINGS ROUTES =====
 
 // Get background settings
-app.get("/make-server-4d451974/admin/background", async (c) => {
+app.get("/admin/background", async (c) => {
   try {
     console.log("Fetching background settings...");
     const settingsData = await kv.get("settings:background");
@@ -395,7 +395,7 @@ app.get("/make-server-4d451974/admin/background", async (c) => {
 });
 
 // Save background settings
-app.post("/make-server-4d451974/admin/background", async (c) => {
+app.post("/admin/background", async (c) => {
   try {
     const body = await c.req.json();
     const { type, videoUrl, imageUrl } = body;

@@ -1,6 +1,6 @@
 # 🚀 THEE ARCHIVE - START HERE!
 
-> **Welcome! Your movie library is ready to deploy. Follow this guide to go live in 30 minutes!**
+> **Welcome! Your movie streaming platform is ready to deploy. Follow this guide to go live in 30 minutes!**
 
 ---
 
@@ -9,7 +9,9 @@
 ✅ **Complete React App** - Frontend ready  
 ✅ **Supabase Backend** - API configured  
 ✅ **Admin Portal** - Password: `0701680Kyamundu`  
-✅ **Search & Download** - With ad integration points  
+✅ **Advanced Video Player** - Picture-in-Picture support  
+✅ **Instant Search** - No ads, seamless experience  
+✅ **Google AdSense Ready** - Monetize downloads & streams  
 ✅ **Responsive Design** - Works on all devices  
 ✅ **Cloud-Ready** - Deploy to Stellar + AWS  
 
