@@ -1,6 +1,6 @@
-# 🎬 THEE ARCHIVE - Free Movie Library
+# 🎬 THEE ARCHIVE - Your Ultimate Movie Library
 
-> **A Luganda movie download site with Google AdSense monetization**
+> **A movie streaming and download platform with Google AdSense monetization**
 
 ![Version](https://img.shields.io/badge/version-1.0.0-gold)
 ![React](https://img.shields.io/badge/React-18.2-blue)
@@ -13,9 +13,17 @@
 
 ✅ **Movie Library Management**
 - Browse movies with beautiful card-based UI
-- Search functionality with 15-second ad
-- Download with 50-second ad countdown
+- Instant search functionality (no ads)
+- Watch movies with advanced video player
+- Download movies (triggers Google Ads)
 - Responsive design (mobile + desktop)
+
+✅ **Advanced Video Player**
+- Picture-in-Picture (PiP) mode - watch while browsing
+- Overlay on top of all windows
+- Full video controls
+- Auto-play support
+- Professional cinema experience
 
 ✅ **Secret Admin Portal**
 - Activated by clicking red dot 6 times
@@ -24,10 +32,10 @@
 - Manage movies, thumbnails, descriptions
 
 ✅ **Monetization Ready**
-- 15-second search ads
-- 50-second download ads
-- Google AdSense integration points
-- Professional cinema aesthetic
+- Google AdSense integration on download/watch
+- No intrusive countdown timers
+- Professional ad placement
+- Revenue-ready from day one
 
 ✅ **Cloud Infrastructure**
 - Frontend: Static hosting (Stellar)
@@ -181,18 +189,12 @@ npm run build
 
 ### Google AdSense Integration:
 
-**Search Ads (15 seconds):**
-- User searches → Ad modal appears
-- Replace countdown with AdSense code
-- User waits 15s → See results
-
 **Download Ads (50 seconds):**
 - User clicks movie → Ad modal appears
 - Replace countdown with AdSense code
 - User waits 50s → Download starts
 
 **Ad Code Locations:**
-- Search: Line ~920 in `/App.tsx`
 - Download: Line ~820 in `/App.tsx`
 - Look for: `{/* REPLACE THIS WITH YOUR GOOGLE ADSENSE CODE */}`
 

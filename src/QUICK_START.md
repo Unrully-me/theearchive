@@ -131,7 +131,7 @@ echo "https://thee-archive-movies.s3.amazonaws.com/movies/my-movie.mp4"
 ```html
 <ins class="adsbygoogle"
      style="display:block"
-     data-ad-client="ca-pub-5559193988562698"
+     data-ad-client="ca-pub-XXXXXXXXXX"
      data-ad-slot="YYYYYYYYYY"
      data-ad-format="auto"></ins>
 <script>

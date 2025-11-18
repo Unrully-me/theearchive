@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 const STORAGE_KEY = 'analyticsConsent';
 
 export default function CookieConsent() {
-  const [consent, setConsent] = useState<boolean | null>(null);
+  const [consent, setConsent] = useState(null as boolean | null);
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
