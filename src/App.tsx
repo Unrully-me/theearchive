@@ -30,6 +30,8 @@ import { TermsOfService } from './components/legal/TermsOfService';
 import { AboutUs } from './components/legal/AboutUs';
 import { ContactUs } from './components/legal/ContactUs';
 import { SetPersonalPinModal } from './components/SetPersonalPinModal';
+import { VerifyPasswordModal } from './components/VerifyPasswordModal';
+import { AnimatedBackground } from './components/AnimatedBackground';
 import { PropellerAd } from './components/PropellerAd';
 import { AdSterraAd } from './components/AdSterraAd';
 
@@ -116,6 +118,7 @@ export default function App() {
   const [showAgeVerification, setShowAgeVerification] = useState(false);
   const [showPinLock, setShowPinLock] = useState(false);
   const [showSetPersonalPin, setShowSetPersonalPin] = useState(false);
+  const [showVerifyPassword, setShowVerifyPassword] = useState(false);
   const [is18PlusUnlocked, setIs18PlusUnlocked] = useState(false);
   const [previousTab, setPreviousTab] = useState<string>('');
   const [userPersonalPin, setUserPersonalPin] = useState<string>(''); // User's personal PIN
@@ -323,48 +326,8 @@ export default function App() {
     localStorage.setItem('downloads', JSON.stringify(updatedDownloads));
     
     alert(`Downloading: ${movie.title}`);
-
-    // Start a robust client-side download attempt.
-    // 1) Try a direct anchor click with `download` (works when same-origin or headers allow it)
-    // 2) If that doesn't start, attempt to fetch -> blob -> objectURL fallback.
-    // 3) Last-resort: open in a new tab/window.
-    const safeFilename = `${movie.title.replace(/[^a-z0-9\.\-_/]/gi, '_')}.mp4`;
-
-    try {
-      const a = document.createElement('a');
-      a.href = movie.videoUrl;
-      a.download = safeFilename;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-
-      // Schedule a fallback download because cross-origin responses often prevent `download` behavior.
-      setTimeout(async () => {
-        try {
-          const resp = await fetch(movie.videoUrl);
-          if (!resp.ok) throw new Error(`Failed to fetch: ${resp.status}`);
-          const blob = await resp.blob();
-          const url = URL.createObjectURL(blob);
-          const a2 = document.createElement('a');
-          a2.href = url;
-          a2.download = safeFilename;
-          document.body.appendChild(a2);
-          a2.click();
-          setTimeout(() => {
-            URL.revokeObjectURL(url);
-            if (a2.parentNode) a2.parentNode.removeChild(a2);
-          }, 2500);
-        } catch (err) {
-          console.warn('Download fallback failed; opening in new tab:', err);
-          window.open(movie.videoUrl, '_blank');
-        }
-      }, 200);
-    } catch (err) {
-      console.warn('Direct download attempt failed, opening in new tab:', err);
-      window.open(movie.videoUrl, '_blank');
-    }
+    // Trigger actual download
+    window.open(movie.videoUrl, '_blank');
   };
 
   const trackActivity = async (movieId: string, action: 'watch' | 'download', movieTitle: string) => {
@@ -478,6 +441,9 @@ export default function App() {
     
     setWatchHistory(updatedHistory);
     localStorage.setItem('watchHistory', JSON.stringify(updatedHistory));
+    
+    // Hide series detail screen temporarily (keep selectedSeries so we can return to it)
+    setShowSeriesDetail(false);
     
     setSelectedMovie(episodeAsMovie);
     setShowPlayer(true);
@@ -696,15 +662,27 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-black to-black">
+    <div className="min-h-screen bg-black relative">
+      {/* Animated Background */}
+      <AnimatedBackground />
+      
       {/* MOBILE HEADER */}
-      <header className="md:hidden sticky top-0 z-50 bg-black/95 backdrop-blur-2xl border-b border-[#FFD700]/20">
-        <div className="px-4 py-3 flex items-center justify-between">
+      <header className="md:hidden sticky top-0 z-50 bg-black/80 backdrop-blur-2xl border-b border-[#FFD700]/30 shadow-[0_4px_24px_rgba(255,215,0,0.2)]">
+        <div className="px-4 py-3 flex items-center justify-between relative">
+          {/* Animated glow line at bottom */}
+          <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#FFD700] to-transparent animate-pulse" />
+          
           {/* Logo */}
           <div className="flex items-center gap-2">
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-[#FFD700] to-[#FFA500] blur-lg opacity-40"></div>
-              <div className="relative bg-gradient-to-br from-[#FFD700] to-[#FF4500] p-1.5 rounded-lg">
+            <div className="relative group/logo">
+              {/* Rotating outer glow */}
+              <div className="absolute inset-[-4px] bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF4500] rounded-xl opacity-30 blur-lg group-hover/logo:opacity-60 transition-opacity animate-spin-slow" />
+              
+              {/* Pulsing glow */}
+              <div className="absolute inset-0 bg-gradient-to-r from-[#FFD700] to-[#FFA500] blur-xl opacity-50 animate-pulse" />
+              
+              {/* Logo box */}
+              <div className="relative bg-gradient-to-br from-[#FFD700] via-[#FFA500] to-[#FF4500] p-1.5 rounded-lg shadow-2xl transform group-hover/logo:scale-105 transition-transform">
                 <Film className="w-5 h-5 text-black" />
                 {/* SECRET ADMIN SWITCH - Red dot with vibrating animation - 6 clicks to open */}
                 <div 
@@ -717,8 +695,10 @@ export default function App() {
                 ></div>
               </div>
             </div>
-            <div>
-              <h1 className="text-lg font-black bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF4500] bg-clip-text text-transparent">
+            <div className="relative">
+              {/* Text glow effect */}
+              <div className="absolute inset-0 blur-md bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF4500] opacity-30" />
+              <h1 className="relative text-lg font-black bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF4500] bg-clip-text text-transparent tracking-tight">
                 THEE ARCHIVE
               </h1>
             </div>
@@ -747,14 +727,23 @@ export default function App() {
       </header>
 
       {/* DESKTOP HEADER */}
-      <header className="hidden md:flex sticky top-0 z-50 bg-black/95 backdrop-blur-2xl border-b border-[#FFD700]/20 shadow-[0_8px_32px_0_rgba(255,215,0,0.15)]">
-        <div className="max-w-7xl mx-auto px-8 w-full">
+      <header className="hidden md:flex sticky top-0 z-50 bg-black/80 backdrop-blur-3xl border-b border-[#FFD700]/30 shadow-[0_8px_32px_0_rgba(255,215,0,0.25)]">
+        <div className="max-w-7xl mx-auto px-8 w-full relative">
+          {/* Animated glow line at bottom */}
+          <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#FFD700] to-transparent opacity-50 animate-pulse" />
+          
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
             <div className="flex items-center gap-4">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-[#FFD700] to-[#FFA500] blur-xl opacity-40 animate-pulse"></div>
-                <div className="relative bg-gradient-to-br from-[#FFD700] to-[#FF4500] p-2.5 rounded-2xl shadow-2xl">
+              <div className="relative group/logo">
+                {/* Rotating outer ring */}
+                <div className="absolute inset-[-6px] bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF4500] rounded-2xl opacity-30 blur-xl group-hover/logo:opacity-60 transition-opacity animate-spin-slow" />
+                
+                {/* Pulsing glow */}
+                <div className="absolute inset-0 bg-gradient-to-r from-[#FFD700] to-[#FFA500] blur-2xl opacity-40 animate-pulse" />
+                
+                {/* Logo box */}
+                <div className="relative bg-gradient-to-br from-[#FFD700] via-[#FFA500] to-[#FF4500] p-2.5 rounded-2xl shadow-2xl transform group-hover/logo:scale-105 transition-all duration-300">
                   <Film className="w-7 h-7 text-black" />
                   {/* SECRET ADMIN SWITCH - Red dot with vibrating animation - 6 clicks to open */}
                   <div 
@@ -767,13 +756,19 @@ export default function App() {
                   ></div>
                 </div>
               </div>
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <h1 className="text-3xl font-black bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF4500] bg-clip-text text-transparent">
+              <div className="relative">
+                <div className="flex items-center gap-2 mb-1 relative">
+                  {/* Title glow effect */}
+                  <div className="absolute inset-0 blur-xl bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF4500] opacity-20" />
+                  
+                  <h1 className="relative text-3xl font-black bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF4500] bg-clip-text text-transparent tracking-tight drop-shadow-[0_0_10px_rgba(255,215,0,0.3)]">
                     THEE ARCHIVE
                   </h1>
                 </div>
-                <p className="text-[10px] font-bold text-gray-400 tracking-wider">ULTIMATE ENTERTAINMENT HUB 🎬</p>
+                <p className="text-[10px] font-bold text-gray-400 tracking-wider flex items-center gap-1">
+                  <span className="inline-block w-1.5 h-1.5 bg-[#FFD700] rounded-full animate-pulse" />
+                  ULTIMATE ENTERTAINMENT HUB 🎬
+                </p>
               </div>
             </div>
 
@@ -848,7 +843,7 @@ export default function App() {
       </header>
 
       {/* MAIN CONTENT */}
-      <main className="pb-4">
+      <main className="pb-28">
         {/* HOME TAB */}
         {activeBottomTab === 'home' && (
           <>
@@ -1534,6 +1529,7 @@ export default function App() {
       {/* BOTTOM NAVIGATION */}
       <FourTabBottomNav
         activeTab={activeBottomTab}
+        isMusicPlaying={isMusicPlaying && currentTrack !== null}
         onTabChange={(tab) => {
           // If trying to access 18+ tab, always require PIN verification
           if (tab === '18plus') {
@@ -1572,6 +1568,11 @@ export default function App() {
           onClose={() => {
             setShowPlayer(false);
             setSelectedMovie(null);
+            
+            // If we were watching from a series, return to series detail screen
+            if (selectedSeries && selectedMovie?.category === 'series') {
+              setShowSeriesDetail(true);
+            }
           }}
         />
       )}
@@ -1606,6 +1607,19 @@ export default function App() {
           onClose={() => setShowPinLock(false)}
           onUnlock={handlePinUnlocked}
           userPersonalPin={userPersonalPin} // Pass user's personal PIN
+        />
+      )}
+
+      {/* VERIFY PASSWORD MODAL - Required before changing PIN */}
+      {showVerifyPassword && currentUser && (
+        <VerifyPasswordModal
+          onClose={() => setShowVerifyPassword(false)}
+          userEmail={currentUser.email}
+          onVerified={() => {
+            // Password verified successfully - Now show PIN modal
+            setShowVerifyPassword(false);
+            setShowSetPersonalPin(true);
+          }}
         />
       )}
 
@@ -1675,7 +1689,13 @@ export default function App() {
               </button>
               <button
                 onClick={() => {
-                  setShowSetPersonalPin(true);
+                  // If changing PIN (already has PIN), require password verification
+                  if (userPersonalPin) {
+                    setShowVerifyPassword(true);
+                  } else {
+                    // First time setting PIN - no verification needed
+                    setShowSetPersonalPin(true);
+                  }
                   setShowProfileMenu(false);
                 }}
                 className="w-full px-4 py-4 text-left hover:bg-white/10 rounded-xl transition-all text-white flex items-center justify-between"
@@ -1759,7 +1779,7 @@ export default function App() {
 
       {/* WATCH HISTORY SCREEN */}
       {showWatchHistoryScreen && (
-        <div className="fixed inset-0 z-[100] bg-black">
+        <div className="fixed inset-0 z-[100] bg-black overflow-y-auto">
           <WatchHistoryScreen
             history={watchHistory}
             onPlay={handleWatch}
@@ -1771,7 +1791,7 @@ export default function App() {
 
       {/* DOWNLOADS SCREEN */}
       {showDownloadsScreen && (
-        <div className="fixed inset-0 z-[100] bg-black">
+        <div className="fixed inset-0 z-[100] bg-black overflow-y-auto">
           <DownloadsScreen
             downloads={downloads}
             onPlay={handleWatch}
@@ -1781,7 +1801,7 @@ export default function App() {
         </div>
       )}
 
-      {/* MUSIC PLAYER */}
+      {/* MUSIC PLAYER - Always mounted for background playback */}
       {showMusicPlayer && currentTrack && (
         <MusicPlayer
           currentTrack={{
@@ -1803,6 +1823,7 @@ export default function App() {
             duration: track.duration
           }))}
           isPlaying={isMusicPlaying}
+          isVisible={activeBottomTab === 'music'}
           onPlayPause={() => setIsMusicPlaying(!isMusicPlaying)}
           onNext={() => {
             const currentIndex = musicQueue.findIndex(t => t.id === currentTrack.id);

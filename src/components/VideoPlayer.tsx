@@ -176,6 +176,26 @@ export function VideoPlayer({ videoUrl, title, description, year, genre, onClose
     };
   }, []);
 
+  // Autoplay when video is loaded
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleCanPlay = () => {
+      // Automatically play the video when it's ready
+      video.play().catch(error => {
+        console.log('Autoplay prevented:', error);
+        // If autoplay is blocked, user will need to click play
+      });
+    };
+
+    video.addEventListener('canplay', handleCanPlay);
+
+    return () => {
+      video.removeEventListener('canplay', handleCanPlay);
+    };
+  }, [videoUrl]); // Re-run when video URL changes
+
   // Auto-hide controls
   const resetControlsTimeout = () => {
     setShowControls(true);

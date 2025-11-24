@@ -72,58 +72,19 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
   // Auto-resume playing after mode change if it was playing before
   useEffect(() => {
     if (shouldAutoPlay && videoRef.current) {
-      // Try to play. If browser blocks autoplay, try muted-play fallback.
-      const tryPlay = async () => {
-        const v = videoRef.current!;
-        try {
-          // First try a regular play (user gesture may already allow it)
-          await v.play();
-          setShouldAutoPlay(false);
-          setIsMuted(v.muted ?? false);
-        } catch (err) {
-          // Autoplay prevented — try muting then play (browsers allow muted autoplay)
-          try {
-            v.muted = true;
-            setIsMuted(true);
-            await v.play();
+      const playPromise = videoRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
             setShouldAutoPlay(false);
-            setIsPlaying(true);
-          } catch (err2) {
-            // Still prevented — stop trying and let the user interact
-            console.warn('Auto-play prevented (even when muted):', err2);
+          })
+          .catch(err => {
+            console.log('Auto-play prevented:', err);
             setShouldAutoPlay(false);
-          }
-        }
-      };
-
-      tryPlay();
+          });
+      }
     }
   }, [mode, shouldAutoPlay]);
-
-  // Attempt an autoplay on mount / when a new movie loads
-  useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-
-    // If the player isn't already playing, attempt a muted autoplay.
-    const attemptAutoplay = async () => {
-      if (!v.paused) return; // already playing
-      try {
-        v.muted = true; // try muted-play first (allowed by most browsers)
-        setIsMuted(true);
-        await v.play();
-        setIsPlaying(true);
-        return;
-      } catch (err) {
-        // If muted autoplay fails, don't spam attempts — let user click to play
-        console.info('Autoplay attempt failed; user gesture required to play', err);
-      }
-    };
-
-    // give the browser a short moment to attach sources / fetch headers
-    const t = setTimeout(() => attemptAutoplay(), 200);
-    return () => clearTimeout(t);
-  }, [movie?.id]);
 
   // Restore saved time when video loads
   useEffect(() => {
@@ -373,8 +334,6 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
             onClick={handlePlayPause}
             poster={movie.thumbnailUrl}
             autoPlay
-            muted={isMuted}
-            preload="metadata"
             playsInline
             onPlay={() => setIsPlaying(true)}
             onPause={() => setIsPlaying(false)}
@@ -506,8 +465,6 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
                     controls
                     poster={movie.thumbnailUrl}
                     playsInline
-                    muted={isMuted}
-                    preload="metadata"
                     onPlay={() => setIsPlaying(true)}
                     onPause={() => setIsPlaying(false)}
                     onTimeUpdate={handleTimeUpdate}
@@ -616,8 +573,6 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
               className="block w-full h-full object-contain"
               poster={movie.thumbnailUrl}
               playsInline
-              muted={isMuted}
-              preload="metadata"
               controls
               onPlay={() => setIsPlaying(true)}
               onPause={() => setIsPlaying(false)}

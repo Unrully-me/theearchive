@@ -256,6 +256,38 @@ app.post("/make-server-4d451974/signin", async (c) => {
   }
 });
 
+// Verify Password (for PIN reset security)
+app.post("/make-server-4d451974/verify-password", async (c) => {
+  try {
+    const { email, password } = await c.req.json();
+
+    if (!email || !password) {
+      return c.json({ success: false, error: "Email and password are required" }, 400);
+    }
+
+    // Try to sign in with the provided credentials
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      console.log(`Password verification failed: ${error.message}`);
+      return c.json({ success: false, verified: false, error: "Incorrect password" }, 401);
+    }
+
+    // Password is correct
+    return c.json({
+      success: true,
+      verified: true,
+      message: "Password verified successfully"
+    });
+  } catch (error) {
+    console.log(`Password verification error: ${error}`);
+    return c.json({ success: false, verified: false, error: String(error) }, 500);
+  }
+});
+
 // Check Auth (verify token and get user)
 app.get("/make-server-4d451974/auth/me", async (c) => {
   try {
