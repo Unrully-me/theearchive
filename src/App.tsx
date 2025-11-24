@@ -1,8 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { Film, Menu, X, Download, Play, Lock, Plus, Edit2, Trash2, Save, Search, Users, LogOut, Ban, CheckCircle, User } from 'lucide-react';
+import { Film, User, Globe, Video, Skull, Tv, Flag, Laugh, Rocket, GraduationCap, Headphones, Clapperboard, Play, Lock, AlertCircle, Clock, Download as DownloadIcon, History } from 'lucide-react';
 import { projectId, publicAnonKey } from './utils/supabase/info';
 import { VideoPlayer } from './components/VideoPlayer';
 import { AuthModal } from './components/AuthModal';
+import { FourTabBottomNav } from './components/FourTabBottomNav';
+import { SearchBar } from './components/SearchBar';
+import { TopCategoryTabs } from './components/TopCategoryTabs';
+import { SectionWithAll } from './components/SectionWithAll';
+import { ProfileMenuList } from './components/ProfileMenuList';
+import { DownloadsScreen } from './components/DownloadsScreen';
+import { WatchHistoryScreen } from './components/WatchHistoryScreen';
+import { MovieCard } from './components/MovieCard';
+import { AgeVerificationModal } from './components/AgeVerificationModal';
+import { PinLockModal } from './components/PinLockModal';
+import { KidoModeScreen } from './components/KidoModeScreen';
+import { ViewAllScreen } from './components/ViewAllScreen';
+import { SeriesDetailScreen } from './components/SeriesDetailScreen';
+import { MovieDetailModal } from './components/MovieDetailModal';
+import { MusicPlayer } from './components/MusicPlayer';
+import { SpotifyMusicScreen } from './components/SpotifyMusicScreen';
+import { groupSeriesEpisodes } from './utils/seriesGrouping';
+import MovieAdminPortal from './movie-admin';
+import AdminPortal from './admin';
+import AddTestMusic from './add-test-music';
+import { Footer } from './components/Footer';
+import { CookieConsent } from './components/CookieConsent';
+import { PrivacyPolicy } from './components/legal/PrivacyPolicy';
+import { TermsOfService } from './components/legal/TermsOfService';
+import { AboutUs } from './components/legal/AboutUs';
+import { ContactUs } from './components/legal/ContactUs';
+import { SetPersonalPinModal } from './components/SetPersonalPinModal';
+import { PropellerAd } from './components/PropellerAd';
+import { AdSterraAd } from './components/AdSterraAd';
 
 interface Movie {
   id: string;
@@ -14,6 +43,27 @@ interface Movie {
   year: string;
   type: string;
   fileSize?: string;
+  category?: 'movie' | 'series' | 'music';
+  contentType?: 'music-video' | 'music-audio'; // For music section
+  artist?: string; // For music section
+  ageRating?: 'G' | 'PG' | 'PG-13' | 'R' | '18+' | 'Kids';
+  section?: string;
+  uploadedAt?: string;
+  episodes?: Episode[];
+  rating?: string;
+  seriesTitle?: string;
+}
+
+interface Episode {
+  id: string;
+  episodeNumber: number;
+  seasonNumber: number;
+  title: string;
+  description: string;
+  videoUrl: string;
+  thumbnailUrl: string;
+  duration?: string;
+  releaseDate?: string;
 }
 
 interface User {
@@ -21,22 +71,33 @@ interface User {
   email: string;
   name: string;
   accessToken?: string;
+  personalPin?: string; // User's personal 18+ PIN (4 digits)
 }
 
-interface UserRecord {
-  id: string;
-  email: string;
-  name: string;
-  isBlocked: boolean;
-  createdAt: string;
-  blockedAt?: string;
-  unblockedAt?: string;
+interface DownloadedMovie extends Movie {
+  downloadedAt: string;
 }
 
 export default function App() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // Navigation State
+  const [activeBottomTab, setActiveBottomTab] = useState<'home' | '18plus' | 'browse' | 'kido' | 'music'>('home');
+  const [activeTopTab, setActiveTopTab] = useState('trending');
+  
+  // TEST MUSIC STATE
+  const [showAddTestMusic, setShowAddTestMusic] = useState(false);
+  
+  // Profile sub-screens
+  const [showDownloadsScreen, setShowDownloadsScreen] = useState(false);
+  const [showWatchHistoryScreen, setShowWatchHistoryScreen] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  
+  // Data States
   const [movies, setMovies] = useState<Movie[]>([]);
+  const [downloads, setDownloads] = useState<DownloadedMovie[]>([]);
+  const [watchHistory, setWatchHistory] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Player States
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [showPlayer, setShowPlayer] = useState(false);
   
@@ -44,751 +105,1423 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   
-  // Admin Portal States
-  const [redDotClicks, setRedDotClicks] = useState(0);
-  const [showAdminPortal, setShowAdminPortal] = useState(false);
-  const [adminPassword, setAdminPassword] = useState('');
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
-  const [adminTab, setAdminTab] = useState<'add' | 'edit' | 'users' | 'background'>('add');
-  const [editingMovie, setEditingMovie] = useState<Movie | null>(null);
-  const [adminFormData, setAdminFormData] = useState({
-    title: '',
-    description: '',
-    videoUrl: '',
-    thumbnailUrl: '',
-    genre: '',
-    year: '',
-    type: 'movie',
-    fileSize: ''
-  });
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPasswordError, setShowPasswordError] = useState(false);
-
-  // User Management States
-  const [users, setUsers] = useState<UserRecord[]>([]);
-  const [usersLoading, setUsersLoading] = useState(false);
-
-  // Search States
+  // Search State
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredMovies, setFilteredMovies] = useState<Movie[]>([]);
-
-  // Background Settings States
-  const [backgroundType, setBackgroundType] = useState<'video' | 'image'>('image');
-  const [backgroundVideoUrl, setBackgroundVideoUrl] = useState('');
-  const [backgroundImageUrl, setBackgroundImageUrl] = useState('');
-  const [backgroundPassword, setBackgroundPassword] = useState('');
-
+  
+  // Admin Portal States - Red dot click counter for secret access
+  const [redDotClicks, setRedDotClicks] = useState(0);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  
+  // 18+ Security States
+  const [showAgeVerification, setShowAgeVerification] = useState(false);
+  const [showPinLock, setShowPinLock] = useState(false);
+  const [showSetPersonalPin, setShowSetPersonalPin] = useState(false);
+  const [is18PlusUnlocked, setIs18PlusUnlocked] = useState(false);
+  const [previousTab, setPreviousTab] = useState<string>('');
+  const [userPersonalPin, setUserPersonalPin] = useState<string>(''); // User's personal PIN
+  
+  // View All Screen States
+  const [showViewAllScreen, setShowViewAllScreen] = useState(false);
+  const [viewAllTitle, setViewAllTitle] = useState('');
+  const [viewAllEmoji, setViewAllEmoji] = useState('');
+  const [viewAllMovies, setViewAllMovies] = useState<Movie[]>([]);
+  
+  // Series Detail Screen State
+  const [showSeriesDetail, setShowSeriesDetail] = useState(false);
+  const [selectedSeries, setSelectedSeries] = useState<any>(null);
+  const [currentMusicTrack, setCurrentMusicTrack] = useState<any>(null);
+  const [showMusicPlayer, setShowMusicPlayer] = useState(false);
+  
+  // Movie Detail Modal State
+  const [showMovieDetail, setShowMovieDetail] = useState(false);
+  const [selectedMovieDetail, setSelectedMovieDetail] = useState<Movie | null>(null);
+  
+  // Music Player States
+  const [musicQueue, setMusicQueue] = useState<Movie[]>([]);
+  const [currentTrack, setCurrentTrack] = useState<Movie | null>(null);
+  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+  
+  // HERO SLIDER STATE - Auto-rotate trending movies
+  const [heroIndex, setHeroIndex] = useState(0);
+  
   const API_URL = `https://${projectId}.supabase.co/functions/v1/make-server-4d451974`;
-  const ADMIN_PASSWORD = '0701680Kyamundu';
 
+  // Load data on mount
   useEffect(() => {
     fetchMovies();
+    loadUserSession();
+    loadDownloads();
+    loadWatchHistory();
+    
+    // Check for admin URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('admin') === 'movie') {
+      setAdminScreen('movie-admin');
+      // Clean URL
+      window.history.replaceState({}, document.title, '/');
+    }
+  }, []);
+  
+  // REFRESH DATA when page becomes visible (e.g., returning from admin portal)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('🔄 Page visible again - refreshing movies...');
+        fetchMovies();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  // Load background settings on mount
-  useEffect(() => {
-    fetchBackgroundSettings();
-  }, []);
-
-  // Check if user is logged in on mount
-  useEffect(() => {
+  const loadUserSession = () => {
     const storedUser = localStorage.getItem('user');
-    const storedToken = localStorage.getItem('accessToken');
-    if (storedUser && storedToken) {
+    if (storedUser) {
       try {
-        const user = JSON.parse(storedUser);
-        setCurrentUser(user);
-      } catch (error) {
-        console.error('Error parsing stored user:', error);
-        localStorage.removeItem('user');
-        localStorage.removeItem('accessToken');
+        setCurrentUser(JSON.parse(storedUser));
+      } catch (e) {
+        console.error('Error loading user session:', e);
       }
     }
-  }, []);
+  };
 
-  // Filter movies when search query changes
-  useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredMovies(movies);
-    } else {
-      const query = searchQuery.toLowerCase();
-      const filtered = movies.filter(movie =>
-        movie.title.toLowerCase().includes(query) ||
-        movie.description.toLowerCase().includes(query) ||
-        movie.genre.toLowerCase().includes(query) ||
-        movie.year.includes(query)
-      );
-      setFilteredMovies(filtered);
+  const loadDownloads = () => {
+    const storedDownloads = localStorage.getItem('downloads');
+    if (storedDownloads) {
+      try {
+        setDownloads(JSON.parse(storedDownloads));
+      } catch (e) {
+        console.error('Error loading downloads:', e);
+      }
     }
-  }, [searchQuery, movies]);
+  };
+
+  const loadWatchHistory = () => {
+    const storedWatchHistory = localStorage.getItem('watchHistory');
+    if (storedWatchHistory) {
+      try {
+        setWatchHistory(JSON.parse(storedWatchHistory));
+      } catch (e) {
+        console.error('Error loading watch history:', e);
+      }
+    }
+  };
 
   const fetchMovies = async () => {
     try {
-      setLoading(true);
-      console.log('Fetching movies from:', `${API_URL}/movies`);
+      console.log('🎬 Fetching movies from:', `${API_URL}/movies`);
       const response = await fetch(`${API_URL}/movies`, {
-        headers: {
-          'Authorization': `Bearer ${publicAnonKey}`,
-        },
+        headers: { 'Authorization': `Bearer ${publicAnonKey}` }
       });
-      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
-      console.log('Response data:', data);
-      if (data.success) {
+      console.log('✅ Movies fetched successfully:', data);
+      
+      if (data.success && data.movies) {
         setMovies(data.movies);
-        setFilteredMovies(data.movies);
-        console.log('Movies loaded:', data.movies.length);
       } else {
-        console.error('Failed to fetch movies:', data.error);
+        console.warn('⚠️ No movies in response, using empty array');
+        setMovies([]);
       }
     } catch (error) {
-      console.error('Error fetching movies:', error);
+      console.error('❌ Error fetching movies:', error);
+      // Don't crash the app - just show empty movies
+      setMovies([]);
+      
+      // Show user-friendly error message only once
+      if (!sessionStorage.getItem('serverErrorShown')) {
+        sessionStorage.setItem('serverErrorShown', 'true');
+        console.log('💡 TIP: The backend server may be starting up. Please wait a moment and refresh.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleWatchClick = (movie: Movie) => {
-    // Check if user is logged in
+  const handleRedDotClick = () => {
+    setRedDotClicks(prev => {
+      const newCount = prev + 1;
+      if (newCount === 6) {
+        // Open admin portal after 6 clicks
+        setAdminScreen('user-admin');
+        // Reset counter
+        return 0;
+      }
+      return newCount;
+    });
+  };
+
+  const handleWatch = (movie: Movie) => {
     if (!currentUser) {
-      alert('Please sign in to watch movies!');
+      alert('Please sign in to watch movies!')
       setShowAuthModal(true);
       return;
     }
-
+    
+    // BLOCK MUSIC FROM OPENING VIDEO PLAYER
+    if (movie.category === 'music') {
+      console.log('🚫 Blocked video player for music - use music player instead!');
+      return;
+    }
+    
+    // If it's a series, show series detail screen instead
+    if (movie.type === 'series' && movie.episodes && movie.episodes.length > 0) {
+      handleSeriesClick(movie);
+      return;
+    }
+    
+    // Track activity
+    trackActivity(movie.id, 'watch', movie.title);
+    
+    // Add to watch history
+    const watchedMovie = {
+      ...movie,
+      watchedAt: new Date().toISOString()
+    };
+    
+    // Remove duplicates and add to beginning
+    const updatedHistory = [
+      watchedMovie,
+      ...watchHistory.filter(m => m.id !== movie.id)
+    ].slice(0, 50); // Keep last 50 watched movies
+    
+    setWatchHistory(updatedHistory);
+    localStorage.setItem('watchHistory', JSON.stringify(updatedHistory));
+    
     setSelectedMovie(movie);
     setShowPlayer(true);
-    // Trigger Google AdSense
-    triggerGoogleAd();
   };
 
-  const handleDownloadClick = (movie: Movie) => {
-    // Check if user is logged in
+  const handleMovieInfo = (movie: Movie) => {
+    setSelectedMovieDetail(movie);
+    setShowMovieDetail(true);
+  };
+
+  const handleDownload = (movie: Movie) => {
     if (!currentUser) {
-      alert('Please sign in to download movies!');
+      alert('Please sign in to download!');
       setShowAuthModal(true);
       return;
     }
-
-    // Trigger Google AdSense before download
-    triggerGoogleAd();
     
-    // Start download - open in new tab for user to download
-    setTimeout(() => {
-      // Create a hidden link that opens the video URL
-      const link = document.createElement('a');
-      link.href = movie.videoUrl;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      
-      // Try to set download attribute (works for same-origin or properly configured CORS)
-      link.download = `${movie.title}.mp4`;
-      
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Notify user
-      alert(`Opening download for "${movie.title}". If download doesn't start automatically, right-click the video and select "Save video as..."`);
-    }, 500);
+    // Track activity
+    trackActivity(movie.id, 'download', movie.title);
+    
+    // Add to downloads
+    const newDownload: DownloadedMovie = {
+      ...movie,
+      downloadedAt: new Date().toISOString()
+    };
+    
+    const updatedDownloads = [newDownload, ...downloads];
+    setDownloads(updatedDownloads);
+    localStorage.setItem('downloads', JSON.stringify(updatedDownloads));
+    
+    alert(`Downloading: ${movie.title}`);
+    // Trigger actual download
+    window.open(movie.videoUrl, '_blank');
   };
 
-  const triggerGoogleAd = () => {
-    // This will trigger Google AdSense
-    // Google will handle ad display automatically
+  const trackActivity = async (movieId: string, action: 'watch' | 'download', movieTitle: string) => {
+    if (!currentUser?.accessToken) return;
+    
     try {
-      // @ts-ignore
-      if (window.adsbygoogle && window.adsbygoogle.loaded) {
-        // @ts-ignore
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
-      }
-    } catch (e) {
-      console.log('AdSense not loaded yet');
-    }
-  };
-
-  const handleClosePlayer = () => {
-    setShowPlayer(false);
-    setSelectedMovie(null);
-  };
-
-  // Admin Portal Functions
-  const handleRedDotClick = () => {
-    const newClickCount = redDotClicks + 1;
-    setRedDotClicks(newClickCount);
-    
-    if (newClickCount === 6) {
-      setShowAdminPortal(true);
-      setRedDotClicks(0);
-    }
-    
-    setTimeout(() => setRedDotClicks(0), 2000);
-  };
-
-  const handleAdminLogin = () => {
-    if (adminPassword === ADMIN_PASSWORD) {
-      setIsAdminAuthenticated(true);
-    } else {
-      alert('Incorrect password!');
-    }
-  };
-
-  const handleAdminFormChange = (field: string, value: string) => {
-    setAdminFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleAddMovie = async () => {
-    if (!adminFormData.title || !adminFormData.videoUrl) {
-      alert('Please fill in at least Title and Video URL');
-      return;
-    }
-
-    if (!confirmPassword) {
-      setShowPasswordError(true);
-      return;
-    }
-
-    if (confirmPassword !== ADMIN_PASSWORD) {
-      alert('Incorrect password!');
-      setShowPasswordError(true);
-      return;
-    }
-
-    setShowPasswordError(false);
-
-    try {
-      const response = await fetch(`${API_URL}/movies`, {
+      await fetch(`${API_URL}/activity/track`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${publicAnonKey}`,
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser.accessToken}`
         },
-        body: JSON.stringify(adminFormData),
+        body: JSON.stringify({ movieId, action, movieTitle })
       });
-
-      const data = await response.json();
-      if (data.success) {
-        alert('Movie added successfully!');
-        setAdminFormData({
-          title: '',
-          description: '',
-          videoUrl: '',
-          thumbnailUrl: '',
-          genre: '',
-          year: '',
-          type: 'movie',
-          fileSize: ''
-        });
-        setConfirmPassword('');
-        fetchMovies();
-      } else {
-        alert('Error adding movie: ' + data.error);
-      }
     } catch (error) {
-      console.error('Error adding movie:', error);
-      alert('Error adding movie. Check console.');
+      console.error('Error tracking activity:', error);
     }
   };
 
-  const handleEditMovie = async () => {
-    if (!editingMovie) return;
-
-    if (!confirmPassword) {
-      setShowPasswordError(true);
-      return;
-    }
-
-    if (confirmPassword !== ADMIN_PASSWORD) {
-      alert('Incorrect password!');
-      setShowPasswordError(true);
-      return;
-    }
-
-    setShowPasswordError(false);
-
-    try {
-      const response = await fetch(`${API_URL}/movies/${editingMovie.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${publicAnonKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(adminFormData),
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        alert('Movie updated successfully!');
-        setEditingMovie(null);
-        setConfirmPassword('');
-        fetchMovies();
-      } else {
-        alert('Error updating movie: ' + data.error);
-      }
-    } catch (error) {
-      console.error('Error updating movie:', error);
-      alert('Error updating movie. Check console.');
-    }
+  const handleDeleteDownload = (id: string) => {
+    const updatedDownloads = downloads.filter(d => d.id !== id);
+    setDownloads(updatedDownloads);
+    localStorage.setItem('downloads', JSON.stringify(updatedDownloads));
   };
 
-  const handleDeleteMovie = async (movieId: string) => {
-    if (!confirm('Are you sure you want to delete this movie?')) return;
-
-    const password = prompt('Enter admin password to confirm deletion:');
-    if (password !== ADMIN_PASSWORD) {
-      alert('Incorrect password!');
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_URL}/movies/${movieId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${publicAnonKey}`,
-        },
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        alert('Movie deleted successfully!');
-        fetchMovies();
-      } else {
-        alert('Error deleting movie: ' + data.error);
-      }
-    } catch (error) {
-      console.error('Error deleting movie:', error);
-      alert('Error deleting movie. Check console.');
-    }
-  };
-
-  const selectMovieForEdit = (movie: Movie) => {
-    setEditingMovie(movie);
-    setAdminFormData({
-      title: movie.title,
-      description: movie.description,
-      videoUrl: movie.videoUrl,
-      thumbnailUrl: movie.thumbnailUrl,
-      genre: movie.genre,
-      year: movie.year,
-      type: movie.type,
-      fileSize: movie.fileSize || ''
-    });
-    setAdminTab('add');
-  };
-
-  const fetchUsers = async () => {
-    try {
-      setUsersLoading(true);
-      console.log('Fetching users from:', `${API_URL}/admin/users`);
-      const response = await fetch(`${API_URL}/admin/users`, {
-        headers: {
-          'Authorization': `Bearer ${publicAnonKey}`,
-        },
-      });
-      console.log('Response status:', response.status);
-      const data = await response.json();
-      console.log('Response data:', data);
-      if (data.success) {
-        setUsers(data.users);
-        console.log('Users loaded:', data.users.length);
-      } else {
-        console.error('Failed to fetch users:', data.error);
-      }
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    } finally {
-      setUsersLoading(false);
-    }
-  };
-
-  const handleBlockUser = async (userId: string) => {
-    if (!confirm('Are you sure you want to block this user?')) return;
-
-    const password = prompt('Enter admin password to confirm blocking:');
-    if (password !== ADMIN_PASSWORD) {
-      alert('Incorrect password!');
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_URL}/admin/users/${userId}/block`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${publicAnonKey}`,
-        },
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        alert('User blocked successfully!');
-        fetchUsers();
-      } else {
-        alert('Error blocking user: ' + data.error);
-      }
-    } catch (error) {
-      console.error('Error blocking user:', error);
-      alert('Error blocking user. Check console.');
-    }
-  };
-
-  const handleUnblockUser = async (userId: string) => {
-    if (!confirm('Are you sure you want to unblock this user?')) return;
-
-    const password = prompt('Enter admin password to confirm unblocking:');
-    if (password !== ADMIN_PASSWORD) {
-      alert('Incorrect password!');
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_URL}/admin/users/${userId}/unblock`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${publicAnonKey}`,
-        },
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        alert('User unblocked successfully!');
-        fetchUsers();
-      } else {
-        alert('Error unblocking user: ' + data.error);
-      }
-    } catch (error) {
-      console.error('Error unblocking user:', error);
-      alert('Error unblocking user. Check console.');
-    }
-  };
-
-  const handleAuthSuccess = (user: User) => {
-    setCurrentUser(user);
-    setShowAuthModal(false);
+  const handleDeleteFromHistory = (id: string) => {
+    const updatedHistory = watchHistory.filter(m => m.id !== id);
+    setWatchHistory(updatedHistory);
+    localStorage.setItem('watchHistory', JSON.stringify(updatedHistory));
   };
 
   const handleLogout = () => {
-    if (confirm('Are you sure you want to log out?')) {
-      setCurrentUser(null);
-      localStorage.removeItem('user');
-      localStorage.removeItem('accessToken');
-    }
+    setCurrentUser(null);
+    localStorage.removeItem('user');
+    localStorage.removeItem('accessToken');
   };
 
-  const fetchBackgroundSettings = async () => {
-    try {
-      const response = await fetch(`${API_URL}/admin/background`, {
-        headers: {
-          'Authorization': `Bearer ${publicAnonKey}`,
-        },
-      });
-
-      const data = await response.json();
-      if (data.success && data.settings) {
-        const settings = data.settings;
-        setBackgroundType(settings.type || 'image');
-        setBackgroundVideoUrl(settings.videoUrl || '');
-        setBackgroundImageUrl(settings.imageUrl || '');
-      }
-    } catch (error) {
-      console.error('Error fetching background settings:', error);
-      // Set defaults on error
-      setBackgroundType('image');
-      setBackgroundVideoUrl('');
-      setBackgroundImageUrl('');
-    }
-  };
-
-  const handleSaveBackground = async () => {
-    if (!backgroundPassword) {
-      alert('Please enter admin password!');
+  const handleMusicClick = (movie: Movie) => {
+    if (!currentUser) {
+      alert('Please sign in to play music!');
+      setShowAuthModal(true);
       return;
     }
+    
+    // Get all music tracks
+    const allMusic = movies.filter(m => m.category === 'music');
+    
+    // Find index of clicked song
+    const clickedIndex = allMusic.findIndex(m => m.id === movie.id);
+    
+    // Create queue starting from clicked song
+    const queue = [
+      ...allMusic.slice(clickedIndex),
+      ...allMusic.slice(0, clickedIndex)
+    ];
+    
+    setMusicQueue(queue);
+    setCurrentTrack(movie);
+    setIsMusicPlaying(true);
+    setShowMusicPlayer(true);
+    
+    // Track activity
+    trackActivity(movie.id, 'watch', movie.title);
+  };
 
-    if (backgroundPassword !== ADMIN_PASSWORD) {
-      alert('Incorrect password!');
+  // Handle Series Click - Show Series Detail Screen
+  const handleSeriesClick = (series: Movie) => {
+    if (!currentUser) {
+      alert('Please sign in to watch series!');
+      setShowAuthModal(true);
       return;
     }
+    
+    setSelectedSeries(series);
+    setShowSeriesDetail(true);
+  };
 
-    try {
-      const response = await fetch(`${API_URL}/admin/background`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${publicAnonKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          type: backgroundType,
-          videoUrl: backgroundVideoUrl,
-          imageUrl: backgroundImageUrl,
-        }),
-      });
+  const handlePlayEpisode = (episode: any) => {
+    if (!currentUser) {
+      alert('Please sign in to watch episodes!');
+      setShowAuthModal(true);
+      return;
+    }
+    
+    // Create a movie object from episode
+    const episodeAsMovie: Movie = {
+      id: episode.id,
+      title: episode.title,
+      description: episode.description,
+      videoUrl: episode.videoUrl,
+      thumbnailUrl: episode.thumbnailUrl,
+      genre: selectedSeries?.genre || '',
+      year: selectedSeries?.year || '',
+      type: 'episode',
+      category: 'series'
+    };
+    
+    // Track activity
+    trackActivity(selectedSeries?.id || episode.id, 'watch', `${selectedSeries?.title} - ${episode.title}`);
+    
+    // Add to watch history
+    const watchedEpisode = {
+      ...episodeAsMovie,
+      watchedAt: new Date().toISOString()
+    };
+    
+    const updatedHistory = [
+      watchedEpisode,
+      ...watchHistory.filter(m => m.id !== episode.id)
+    ].slice(0, 50);
+    
+    setWatchHistory(updatedHistory);
+    localStorage.setItem('watchHistory', JSON.stringify(updatedHistory));
+    
+    setSelectedMovie(episodeAsMovie);
+    setShowPlayer(true);
+  };
 
-      const data = await response.json();
-      if (data.success) {
-        alert('Background settings saved successfully!');
-        setBackgroundPassword('');
-        fetchBackgroundSettings(); // Reload to apply
-      } else {
-        alert('Error saving background: ' + data.error);
-      }
-    } catch (error) {
-      console.error('Error saving background:', error);
-      alert('Error saving background. Check console.');
+  const handleDownloadEpisode = (episode: any) => {
+    if (!currentUser) {
+      alert('Please sign in to download!');
+      setShowAuthModal(true);
+      return;
+    }
+    
+    // Track activity
+    trackActivity(selectedSeries?.id || episode.id, 'download', `${selectedSeries?.title} - ${episode.title}`);
+    
+    alert(`Downloading: ${episode.title}`);
+    window.open(episode.videoUrl, '_blank');
+  };
+
+  // Handle 18+ Tab Change with Security
+  const handle18PlusAccess = () => {
+    if (!currentUser) {
+      alert('Please sign in first to access 18+ content!');
+      setShowAuthModal(true);
+      return;
+    }
+    
+    // Check user-specific PIN
+    const hasPinSetup = localStorage.getItem(`user_pin_${currentUser.id}`);
+    
+    if (!hasPinSetup) {
+      // First time - need age verification and PIN setup
+      setShowAgeVerification(true);
+    } else if (!is18PlusUnlocked) {
+      // PIN exists but locked - Load PIN and show lock modal
+      setUserPersonalPin(hasPinSetup);
+      setShowPinLock(true);
+    } else {
+      // Already unlocked - Show 18+ content in ViewAllScreen
+      setViewAllTitle('18+ Content');
+      setViewAllEmoji('🔞');
+      setViewAllMovies(groupSeriesEpisodes(movies.filter(m => m.ageRating === '18+')));
+      setShowViewAllScreen(true);
+      setActiveTopTab('18+');
     }
   };
+
+  const handleTopTabChange = (tab: string) => {
+    // Lock 18+ when leaving
+    if (previousTab === '18+' && tab !== '18+') {
+      setIs18PlusUnlocked(false);
+    }
+    
+    setPreviousTab(activeTopTab);
+    
+    if (tab === '18+') {
+      handle18PlusAccess();
+    } else if (tab === 'kids') {
+      setActiveTopTab('kids');
+    } else if (tab === 'music') {
+      // Music tab should go directly to the Music section (bottom tab)
+      setActiveBottomTab('music');
+      setActiveTopTab('trending'); // Reset top tab
+    } else {
+      setActiveTopTab(tab);
+    }
+  };
+
+  const handleAgeVerified = (pin: string) => {
+    setShowAgeVerification(false);
+    setUserPersonalPin(pin); // Save PIN to state
+    setIs18PlusUnlocked(true);
+    setActiveBottomTab('18plus'); // Switch to 18+ tab after age verification
+    setActiveTopTab('18+');
+    // Show 18+ content in ViewAllScreen
+    setViewAllTitle('18+ Content');
+    setViewAllEmoji('🔞');
+    setViewAllMovies(groupSeriesEpisodes(movies.filter(m => m.ageRating === '18+')));
+    setShowViewAllScreen(true);
+    alert('✓ Age verified! 18+ content unlocked.');
+  };
+
+  const handlePinUnlocked = () => {
+    setShowPinLock(false);
+    setIs18PlusUnlocked(true);
+    setActiveBottomTab('18plus'); // Switch to 18+ tab after unlock
+    setActiveTopTab('18+');
+    // Show 18+ content in ViewAllScreen
+    setViewAllTitle('18+ Content');
+    setViewAllEmoji('🔞');
+    setViewAllMovies(groupSeriesEpisodes(movies.filter(m => m.ageRating === '18+')));
+    setShowViewAllScreen(true);
+  };
+
+  // Filter movies based on active top tab
+  const getFilteredMovies = () => {
+    let filtered = movies;
+    
+    // CRITICAL: EXCLUDE 18+ and MUSIC from ALL home screen tabs
+    if (activeTopTab === 'trending') {
+      filtered = movies.filter(m => m.ageRating !== '18+' && m.category !== 'music');
+    }
+    else if (activeTopTab === 'movies') {
+      filtered = movies.filter(m => m.type === 'movie' && m.ageRating !== '18+' && m.category !== 'music');
+    }
+    else if (activeTopTab === 'series') {
+      filtered = movies.filter(m => m.type === 'series' && m.ageRating !== '18+' && m.category !== 'music');
+    }
+    else if (activeTopTab === 'music') {
+      filtered = movies.filter(m => m.category === 'music');
+    }
+    else if (activeTopTab === 'kids') {
+      filtered = movies.filter(m => m.ageRating === 'Kids');
+    }
+    else if (activeTopTab === '18+') {
+      filtered = movies.filter(m => m.ageRating === '18+');
+    }
+    else {
+      // Default: exclude 18+ and music
+      filtered = movies.filter(m => m.ageRating !== '18+' && m.category !== 'music');
+    }
+    
+    // Group series episodes into single cards
+    return groupSeriesEpisodes(filtered);
+  };
+
+  // Search functionality - EXCLUDE 18+ and MUSIC from search results
+  const searchResults = searchQuery
+    ? groupSeriesEpisodes(movies.filter(movie =>
+        (movie.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        movie.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        movie.genre.toLowerCase().includes(searchQuery.toLowerCase())) &&
+        movie.ageRating !== '18+' && // Never show 18+ in search
+        movie.category !== 'music' // Never show music in search
+      ))
+    : [];
+
+  const filteredMovies = getFilteredMovies();
+  
+  // HERO SLIDER - Show newest MOVIE/SERIES uploads only (NO MUSIC, NO 18+)
+  const heroMovies = [...filteredMovies]
+    .filter(m => m.category !== 'music' && m.ageRating !== '18+') // Exclude music and 18+ from hero slider
+    .sort((a, b) => {
+      const dateA = new Date(a.uploadedAt || '2000-01-01').getTime();
+      const dateB = new Date(b.uploadedAt || '2000-01-01').getTime();
+      return dateB - dateA; // Newest first
+    })
+    .slice(0, 10); // Top 10 newest movies/series
+  
+  // Auto-rotate hero slider every 5 seconds
+  useEffect(() => {
+    if (heroMovies.length === 0) return;
+    
+    const heroInterval = setInterval(() => {
+      setHeroIndex((prev) => {
+        const maxIndex = heroMovies.length - 1;
+        return prev >= maxIndex ? 0 : prev + 1;
+      });
+    }, 5000);
+    
+    return () => clearInterval(heroInterval);
+  }, [heroMovies.length]);
+  
+  // DEBUG: Log grouping results
+  console.log('📊 Total movies after grouping:', filteredMovies.length);
+  console.log('🎬 Grouped items sample:', filteredMovies.slice(0, 5).map(m => ({
+    title: m.title,
+    type: m.type,
+    hasEpisodes: !!m.episodes,
+    episodeCount: m.episodes?.length || 0,
+    seriesTitle: m.seriesTitle
+  })));
+  
+  // Log first few items in full detail
+  if (filteredMovies.length > 0) {
+    console.log('🔎 FIRST ITEM FULL DETAILS:', filteredMovies[0]);
+  }
+
+  // ROUTING - State-based routing for admin portals and legal pages
+  const [adminScreen, setAdminScreen] = useState('');
+  const [legalPage, setLegalPage] = useState<'' | 'privacy' | 'terms' | 'about' | 'contact'>('');
+  
+  console.log('Admin Screen State:', adminScreen);
+  console.log('Legal Page State:', legalPage);
+  
+  // Show Legal Pages
+  if (legalPage === 'privacy') {
+    return <PrivacyPolicy onClose={() => setLegalPage('')} />;
+  }
+  if (legalPage === 'terms') {
+    return <TermsOfService onClose={() => setLegalPage('')} />;
+  }
+  if (legalPage === 'about') {
+    return <AboutUs onClose={() => setLegalPage('')} />;
+  }
+  if (legalPage === 'contact') {
+    return <ContactUs onClose={() => setLegalPage('')} />;
+  }
+  
+  // Show Movie Admin Portal as a modal
+  if (adminScreen === 'movie-admin') {
+    console.log('Rendering MovieAdminPortal');
+    return <MovieAdminPortal 
+      skipAuth={isAdminAuthenticated} 
+      onNavigateBack={() => setAdminScreen('user-admin')}
+    />;
+  }
+  
+  // Show User Admin Portal as a modal
+  if (adminScreen === 'user-admin') {
+    console.log('Rendering AdminPortal');
+    return <AdminPortal 
+      onAuthenticated={setIsAdminAuthenticated}
+      onNavigateToMovieAdmin={() => setAdminScreen('movie-admin')}
+    />;
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-xl border-b border-[#FFD700]/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            {/* Logo */}
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Film className="w-10 h-10 text-[#FFD700]" />
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-black to-black">
+      {/* MOBILE HEADER */}
+      <header className="md:hidden sticky top-0 z-50 bg-black/95 backdrop-blur-2xl border-b border-[#FFD700]/20">
+        <div className="px-4 py-3 flex items-center justify-between">
+          {/* Logo */}
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-[#FFD700] to-[#FFA500] blur-lg opacity-40"></div>
+              <div className="relative bg-gradient-to-br from-[#FFD700] to-[#FF4500] p-1.5 rounded-lg">
+                <Film className="w-5 h-5 text-black" />
+                {/* SECRET ADMIN SWITCH - Red dot with vibrating animation - 6 clicks to open */}
                 <div 
-                  onClick={handleRedDotClick}
-                  className="absolute -top-1 -right-1 w-3 h-3 bg-red-600 rounded-full cursor-pointer hover:scale-110 transition-transform"
-                />
-              </div>
-              <div>
-                <h1 className="text-2xl font-black bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF4500] bg-clip-text text-transparent">
-                  THEE ARCHIVE
-                </h1>
-                <p className="text-xs text-gray-400">Your Ultimate Movie Library</p>
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRedDotClick();
+                  }}
+                  className="absolute top-0 right-0 w-2 h-2 bg-red-600 rounded-full animate-pulse"
+                  style={{ animation: 'vibrate 2s ease-in-out infinite' }}
+                ></div>
               </div>
             </div>
-
-            {/* Desktop Nav */}
-            <nav className="hidden md:flex items-center gap-6">
-              <a href="#movies" className="text-gray-300 hover:text-[#FFD700] transition-colors">Movies</a>
-              <a href="#about" className="text-gray-300 hover:text-[#FFD700] transition-colors">About</a>
-              
-              {/* Auth Buttons */}
-              {currentUser ? (
-                <div className="flex items-center gap-4">
-                  <div className="text-sm">
-                    <p className="text-[#FFD700] font-bold">{currentUser.name}</p>
-                    <p className="text-gray-500 text-xs">{currentUser.email}</p>
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg transition-all"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Logout
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowAuthModal(true)}
-                  className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black font-bold rounded-lg hover:scale-105 transition-all shadow-lg"
-                >
-                  <Lock className="w-4 h-4" />
-                  Sign In
-                </button>
-              )}
-            </nav>
-
-            {/* Mobile Menu Button */}
+            <div>
+              <h1 className="text-lg font-black bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF4500] bg-clip-text text-transparent">
+                THEE ARCHIVE
+              </h1>
+            </div>
+          </div>
+          
+          {/* Profile Icon / Sign In */}
+          {currentUser ? (
             <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 bg-gradient-to-r from-[#FFD700] to-[#FFA500] rounded-lg hover:scale-110 transition-all shadow-lg"
+              onClick={() => {
+                setShowProfileMenu(true);
+                setActiveBottomTab('home');
+              }}
+              className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FFD700] to-[#FF4500] flex items-center justify-center"
             >
-              {mobileMenuOpen ? <X className="w-6 h-6 text-black" /> : <Menu className="w-6 h-6 text-black" />}
+              <User className="w-5 h-5 text-black" />
             </button>
-          </div>
+          ) : (
+            <button
+              onClick={() => setShowAuthModal(true)}
+              className="px-4 py-2 bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black font-bold text-sm rounded-lg"
+            >
+              Sign In
+            </button>
+          )}
         </div>
-
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden bg-black/95 backdrop-blur-lg border-t border-gray-800">
-            <nav className="flex flex-col p-4 gap-2">
-              <a href="#movies" className="px-4 py-3 text-gray-300 hover:text-[#FFD700] hover:bg-white/5 rounded-lg transition-all">Movies</a>
-              <a href="#about" className="px-4 py-3 text-gray-300 hover:text-[#FFD700] hover:bg-white/5 rounded-lg transition-all">About</a>
-              
-              {/* Mobile Auth Section */}
-              {currentUser ? (
-                <div className="mt-4 pt-4 border-t border-gray-800">
-                  {/* User Profile */}
-                  <div className="px-4 py-3 bg-gradient-to-r from-[#FFD700]/10 to-[#FFA500]/10 rounded-lg mb-2">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FFD700] to-[#FFA500] flex items-center justify-center">
-                        <User className="w-6 h-6 text-black" />
-                      </div>
-                      <div>
-                        <p className="text-[#FFD700] font-bold text-sm">{currentUser.name}</p>
-                        <p className="text-gray-500 text-xs">{currentUser.email}</p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Logout Button */}
-                  <button
-                    onClick={handleLogout}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg transition-all"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Logout
-                  </button>
-                </div>
-              ) : (
-                <div className="mt-4 pt-4 border-t border-gray-800">
-                  <button
-                    onClick={() => {
-                      setShowAuthModal(true);
-                      setMobileMenuOpen(false);
-                    }}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black font-bold rounded-lg hover:scale-105 transition-all shadow-lg"
-                  >
-                    <Lock className="w-4 h-4" />
-                    Sign In
-                  </button>
-                </div>
-              )}
-            </nav>
-          </div>
-        )}
       </header>
 
-      {/* Hero Section */}
-      <section className="relative py-20 px-4 overflow-hidden">
-        {/* Dynamic Background */}
-        {backgroundType === 'video' && backgroundVideoUrl ? (
-          <video
-            src={backgroundVideoUrl}
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="absolute inset-0 w-full h-full object-cover opacity-30"
-          />
-        ) : backgroundType === 'image' && backgroundImageUrl ? (
-          <div
-            className="absolute inset-0 w-full h-full bg-cover bg-center opacity-30"
-            style={{ backgroundImage: `url(${backgroundImageUrl})` }}
-          />
-        ) : null}
-        
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#FFD700]/5 to-transparent" />
-        
-        <div className="max-w-7xl mx-auto text-center relative z-10">
-          <h2 className="text-5xl md:text-7xl font-black mb-6 bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF4500] bg-clip-text text-transparent">
-            Stream & Download
-          </h2>
-          <p className="text-xl md:text-2xl text-gray-300 mb-8">
-            Watch your favorite movies anytime, anywhere
-          </p>
-
-          {/* Search Bar */}
-          <div className="max-w-2xl mx-auto">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search movies by title, genre, year..."
-                className="w-full pl-14 pr-6 py-4 bg-white/10 border-2 border-[#FFD700]/30 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:border-[#FFD700] transition-all"
-              />
+      {/* DESKTOP HEADER */}
+      <header className="hidden md:flex sticky top-0 z-50 bg-black/95 backdrop-blur-2xl border-b border-[#FFD700]/20 shadow-[0_8px_32px_0_rgba(255,215,0,0.15)]">
+        <div className="max-w-7xl mx-auto px-8 w-full">
+          <div className="flex items-center justify-between h-20">
+            {/* Logo */}
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-[#FFD700] to-[#FFA500] blur-xl opacity-40 animate-pulse"></div>
+                <div className="relative bg-gradient-to-br from-[#FFD700] to-[#FF4500] p-2.5 rounded-2xl shadow-2xl">
+                  <Film className="w-7 h-7 text-black" />
+                  {/* SECRET ADMIN SWITCH - Red dot with vibrating animation - 6 clicks to open */}
+                  <div 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRedDotClick();
+                    }}
+                    className="absolute top-0.5 right-0.5 w-2.5 h-2.5 bg-red-600 rounded-full"
+                    style={{ animation: 'vibrate 2s ease-in-out infinite' }}
+                  ></div>
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <h1 className="text-3xl font-black bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF4500] bg-clip-text text-transparent">
+                    THEE ARCHIVE
+                  </h1>
+                </div>
+                <p className="text-[10px] font-bold text-gray-400 tracking-wider">ULTIMATE ENTERTAINMENT HUB 🎬</p>
+              </div>
             </div>
-            {searchQuery && (
-              <p className="mt-3 text-sm text-gray-400">
-                Found {filteredMovies.length} movie{filteredMovies.length !== 1 ? 's' : ''}
-              </p>
+
+            {/* Auth / Profile Button */}
+            {currentUser ? (
+              <>
+                <button
+                  onClick={() => setShowProfileMenu(!showProfileMenu)}
+                  className="w-12 h-12 rounded-full bg-gradient-to-br from-[#FFD700] to-[#FF4500] flex items-center justify-center hover:shadow-lg hover:shadow-[#FFD700]/50 transition-all relative z-50"
+                >
+                  <User className="w-6 h-6 text-black" />
+                </button>
+                
+                {/* Profile Dropdown Menu - Fixed to top-right corner */}
+                {showProfileMenu && (
+                  <>
+                    {/* Invisible backdrop to close menu */}
+                    <div 
+                      className="fixed inset-0 z-[60]" 
+                      onClick={() => setShowProfileMenu(false)}
+                    />
+                    <div className="fixed top-20 right-8 w-64 bg-black/95 backdrop-blur-xl border border-[#FFD700]/20 rounded-xl shadow-2xl overflow-hidden z-[70]">
+                      <div className="p-4 border-b border-white/10">
+                        <p className="text-sm font-black text-white">{currentUser.name}</p>
+                        <p className="text-xs text-gray-400">{currentUser.email}</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setShowWatchHistoryScreen(true);
+                          setShowProfileMenu(false);
+                          setActiveBottomTab('home');
+                        }}
+                        className="w-full px-4 py-3 text-left hover:bg-white/10 transition-all text-white flex items-center gap-2"
+                      >
+                        <Clock className="w-4 h-4 text-[#FFD700]" />
+                        <span>Watch History ({watchHistory.length})</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowDownloadsScreen(true);
+                          setShowProfileMenu(false);
+                          setActiveBottomTab('home');
+                        }}
+                        className="w-full px-4 py-3 text-left hover:bg-white/10 transition-all text-white flex items-center gap-2"
+                      >
+                        <DownloadIcon className="w-4 h-4 text-cyan-400" />
+                        <span>Downloads ({downloads.length})</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleLogout();
+                          setShowProfileMenu(false);
+                        }}
+                        className="w-full px-4 py-3 text-left hover:bg-red-500/20 transition-all text-red-400 font-bold border-t border-white/10"
+                      >
+                        🚪 Logout
+                      </button>
+                    </div>
+                  </>
+                )}
+              </>
+            ) : (
+              <button
+                onClick={() => setShowAuthModal(true)}
+                className="px-6 py-3 bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black font-black rounded-xl hover:shadow-lg hover:shadow-[#FFD700]/50 transition-all"
+              >
+                Sign In
+              </button>
             )}
           </div>
         </div>
-      </section>
+      </header>
 
-      {/* Movies Grid */}
-      <section id="movies" className="py-16 px-4">
-        <div className="max-w-7xl mx-auto">
-          <h3 className="text-3xl font-black text-[#FFD700] mb-8">Available Movies</h3>
-          
-          {loading ? (
-            <div className="text-center py-20">
-              <div className="inline-block w-12 h-12 border-4 border-[#FFD700] border-t-transparent rounded-full animate-spin" />
-              <p className="mt-4 text-gray-400">Loading movies...</p>
-            </div>
-          ) : filteredMovies.length === 0 ? (
-            <div className="text-center py-20">
-              <Film className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-              <p className="text-gray-400">
-                {searchQuery ? 'No movies found matching your search' : 'No movies available yet'}
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-              {filteredMovies.map((movie) => (
-                <div
-                  key={movie.id}
-                  className="group relative bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-xl overflow-hidden border border-[#FFD700]/20 hover:border-[#FFD700] transition-all hover:scale-105"
-                >
-                  {/* Thumbnail */}
-                  <div className="aspect-[2/3] relative overflow-hidden bg-gray-800">
-                    {movie.thumbnailUrl ? (
-                      <img
-                        src={movie.thumbnailUrl}
-                        alt={movie.title}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Film className="w-12 h-12 text-gray-600" />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                    
-                    {/* Lock Icon for Non-Logged Users */}
-                    {!currentUser && (
-                      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="text-center">
-                          <Lock className="w-10 h-10 text-[#FFD700] mx-auto mb-2" />
-                          <p className="text-white text-xs font-bold">Sign in to watch</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+      {/* MAIN CONTENT */}
+      <main className="pb-4">
+        {/* HOME TAB */}
+        {activeBottomTab === 'home' && (
+          <>
+            {/* Search Bar */}
+            <SearchBar
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search movies, series, music..."
+            />
 
-                  {/* Info */}
-                  <div className="p-2">
-                    <h4 className="font-bold text-white text-sm mb-1 line-clamp-1">{movie.title}</h4>
-                    <p className="text-xs text-gray-400 mb-2 line-clamp-1">{movie.description}</p>
-                    
-                    <div className="flex items-center gap-1 text-xs text-gray-500 mb-2">
-                      <span className="bg-[#FFD700]/20 text-[#FFD700] px-1.5 py-0.5 rounded text-xs">{movie.genre}</span>
-                      <span className="text-xs">{movie.year}</span>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => handleWatchClick(movie)}
-                        className="flex-1 flex items-center justify-center gap-1 bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black px-2 py-1.5 rounded-lg hover:shadow-lg hover:shadow-[#FFD700]/50 transition-all font-bold text-xs"
-                      >
-                        <Play className="w-3 h-3" />
-                        Watch
-                      </button>
-                      <button
-                        onClick={() => handleDownloadClick(movie)}
-                        className="flex-1 flex items-center justify-center gap-1 bg-gradient-to-r from-[#FF4500] to-[#FFA500] text-white px-2 py-1.5 rounded-lg hover:shadow-lg hover:shadow-[#FF4500]/50 transition-all font-bold text-xs"
-                      >
-                        <Download className="w-3 h-3" />
-                        DL
-                      </button>
-                    </div>
-                  </div>
+            {/* Show Search Results if searching */}
+            {searchQuery ? (
+              <div className="px-4 py-6">
+                <h2 className="text-2xl font-black text-white mb-4">
+                  Search Results ({searchResults.length})
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {searchResults.map(movie => (
+                    <MovieCard
+                      key={movie.id}
+                      movie={movie as any}
+                      onWatch={handleWatch}
+                      onDownload={handleDownload}
+                      onMusicClick={handleMusicClick}
+                      onSeriesClick={handleSeriesClick}
+                    />
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
+              </div>
+            ) : (
+              <>
+                {/* Top Category Tabs */}
+                <TopCategoryTabs
+                  activeTab={activeTopTab}
+                  onTabChange={handleTopTabChange}
+                  has18Plus={true}
+                />
 
-      {/* Professional Video Player */}
+                {/* KIDS MODE - Special Screen */}
+                {activeTopTab === 'kids' ? (
+                  <KidoModeScreen
+                    movies={movies}
+                    onWatch={handleWatch}
+                    onDownload={handleDownload}
+                    onMusicClick={handleMusicClick}
+                    onSeriesClick={handleSeriesClick}
+                  />
+                ) : (
+                  <>
+                    {/* Hero Section - AUTO-ROTATING SLIDER */}
+                    {heroMovies[heroIndex] && (
+                      <div 
+                        key={heroMovies[heroIndex].id}
+                        className="relative h-[60vh] md:h-[70vh] mb-8 overflow-hidden transition-all duration-1000 bg-gradient-to-br from-gray-900 via-black to-gray-900"
+                      >
+                        {/* Background Image with Error Handling */}
+                        {heroMovies[heroIndex].thumbnailUrl && (
+                          <img
+                            src={heroMovies[heroIndex].thumbnailUrl}
+                            alt={heroMovies[heroIndex].title}
+                            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        )}
+                        
+                        {/* Animated Gradient Overlays - Multiple Layers for Depth */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/40" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-black/40" />
+                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black" />
+                        
+                        {/* Shimmer Effect on Load */}
+                        <div className="absolute inset-0 shimmer opacity-20" />
+                        
+                        {/* Navigation Dots - Modern Glassmorphism */}
+                        <div className="absolute top-6 right-6 flex gap-2 glass-card rounded-full px-3 py-2">
+                          {heroMovies.map((_, index) => (
+                            <button
+                              key={index}
+                              onClick={() => setHeroIndex(index)}
+                              className={`h-2 rounded-full transition-all duration-500 ${
+                                index === heroIndex 
+                                  ? 'bg-gradient-to-r from-[#FFD700] to-[#FFA500] w-8 shadow-2xl shadow-[#FFD700]/60' 
+                                  : 'bg-white/30 w-2 hover:bg-white/50 hover:w-4'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        
+                        {/* Content Container - Bottom Left with Glassmorphism */}
+                        <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10">
+                          <div className="max-w-2xl slide-in-up">
+                            {/* Title with Glow Effect */}
+                            <h2 className="text-4xl md:text-6xl font-black text-white mb-6 drop-shadow-2xl leading-tight">
+                              {heroMovies[heroIndex].title}
+                            </h2>
+                            
+                            {/* Meta Info - Glassmorphism Pills */}
+                            <div className="flex flex-wrap items-center gap-3 mb-6">
+                              <span className="glass-card px-4 py-2 rounded-xl font-black text-sm flex items-center gap-2">
+                                <span className={`w-2 h-2 rounded-full ${
+                                  heroMovies[heroIndex].ageRating === '18+' ? 'bg-red-500' : 'bg-[#FFD700]'
+                                } animate-pulse`}></span>
+                                <span className="text-white">{heroMovies[heroIndex].ageRating || 'PG'}</span>
+                              </span>
+                              <span className="glass-card px-4 py-2 rounded-xl">
+                                <span className="text-[#FFD700] font-black text-sm">{heroMovies[heroIndex].year}</span>
+                              </span>
+                              <span className="glass-card px-4 py-2 rounded-xl">
+                                <span className="text-gray-300 font-bold text-sm">{heroMovies[heroIndex].genre}</span>
+                              </span>
+                              {heroMovies[heroIndex].episodes && heroMovies[heroIndex].episodes.length > 0 && (
+                                <span className="glass-card px-4 py-2 rounded-xl bg-purple-500/20 border-purple-400/30">
+                                  <span className="text-purple-300 font-black text-sm">{heroMovies[heroIndex].episodes.length} Episodes</span>
+                                </span>
+                              )}
+                            </div>
+                            
+                            {/* Description */}
+                            <p className="text-gray-300 text-sm md:text-base mb-6 line-clamp-2 md:line-clamp-3 max-w-xl drop-shadow-lg font-medium">
+                              {heroMovies[heroIndex].description}
+                            </p>
+                            
+                            {/* Action Buttons - Modern 3D Style */}
+                            <div className="flex flex-wrap gap-4">
+                              {/* WATCH NOW - Premium 3D Button */}
+                              <button
+                                onClick={() => handleWatch(heroMovies[heroIndex])}
+                                className="relative group modern-button"
+                              >
+                                {/* 3D Shadow Layers */}
+                                <div className="absolute inset-0 bg-gradient-to-b from-[#FF6B00] to-[#FF4500] rounded-2xl transform translate-y-2 group-hover:translate-y-3 transition-transform" />
+                                <div className="absolute inset-0 bg-gradient-to-b from-[#FFA500] to-[#FF6B00] rounded-2xl transform translate-y-1 group-hover:translate-y-1.5 transition-transform" />
+                                
+                                {/* Main Button */}
+                                <div className="relative px-8 py-4 bg-gradient-to-b from-[#FFD700] via-[#FFA500] to-[#FF8C00] rounded-2xl font-black text-black text-base transform transition-all group-hover:translate-y-0.5 group-hover:shadow-2xl group-hover:shadow-[#FFD700]/60 flex items-center gap-3 border border-[#FFD700]/30">
+                                  <div className="w-8 h-8 bg-black/20 rounded-full flex items-center justify-center">
+                                    <div className="w-0 h-0 border-l-[10px] border-l-white border-t-[7px] border-t-transparent border-b-[7px] border-b-transparent ml-1" />
+                                  </div>
+                                  <span className="text-lg">WATCH NOW</span>
+                                </div>
+                              </button>
+                              
+                              {/* INFO BUTTON - Glassmorphism */}
+                              <button
+                                onClick={() => handleMovieInfo(heroMovies[heroIndex])}
+                                className="glass-card glass-card-hover px-8 py-4 rounded-2xl font-black text-white text-base flex items-center gap-3"
+                              >
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>More Info</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Vignette Effect - Dramatic Edges */}
+                        <div className="absolute inset-0 pointer-events-none" style={{
+                          boxShadow: 'inset 0 0 100px rgba(0,0,0,0.8), inset 0 0 200px rgba(0,0,0,0.5)'
+                        }} />
+                      </div>
+                    )}
+
+                    {/* Sections with "All >" button */}
+                    <SectionWithAll
+                      title="Trending Now"
+                      emoji="🔥"
+                      movies={filteredMovies.slice(0, 20)}
+                      onWatch={handleWatch}
+                      onDownload={handleDownload}
+                      onMusicClick={handleMusicClick}
+                      onSeriesClick={handleSeriesClick}
+                      onViewAll={() => {
+                        setViewAllTitle('Trending Now');
+                        setViewAllEmoji('🔥');
+                        setViewAllMovies(filteredMovies);
+                        setShowViewAllScreen(true);
+                      }}
+                    />
+
+                    <SectionWithAll
+                      title="Action Movies"
+                      emoji="💥"
+                      movies={filteredMovies.filter(m => m.genre?.includes('Action')).slice(0, 20)}
+                      onWatch={handleWatch}
+                      onDownload={handleDownload}
+                      onMusicClick={handleMusicClick}
+                      onSeriesClick={handleSeriesClick}
+                      onViewAll={() => {
+                        setViewAllTitle('Action Movies');
+                        setViewAllEmoji('💥');
+                        setViewAllMovies(filteredMovies.filter(m => m.genre?.includes('Action')));
+                        setShowViewAllScreen(true);
+                      }}
+                    />
+
+                    <SectionWithAll
+                      title="New Releases"
+                      emoji="🆕"
+                      movies={[...filteredMovies].sort((a, b) => 
+                        new Date(b.uploadedAt || '').getTime() - new Date(a.uploadedAt || '').getTime()
+                      ).slice(0, 20)}
+                      onWatch={handleWatch}
+                      onDownload={handleDownload}
+                      onMusicClick={handleMusicClick}
+                      onSeriesClick={handleSeriesClick}
+                      onViewAll={() => {
+                        const newReleases = [...filteredMovies].sort((a, b) => 
+                          new Date(b.uploadedAt || '').getTime() - new Date(a.uploadedAt || '').getTime()
+                        );
+                        setViewAllTitle('New Releases');
+                        setViewAllEmoji('🆕');
+                        setViewAllMovies(newReleases);
+                        setShowViewAllScreen(true);
+                      }}
+                    />
+
+                    <SectionWithAll
+                      title="Horror"
+                      emoji="👻"
+                      movies={filteredMovies.filter(m => m.genre?.toLowerCase().includes('horror') || m.section?.toLowerCase().includes('horror')).slice(0, 20)}
+                      onWatch={handleWatch}
+                      onDownload={handleDownload}
+                      onMusicClick={handleMusicClick}
+                      onSeriesClick={handleSeriesClick}
+                      onViewAll={() => {
+                        setViewAllTitle('Horror');
+                        setViewAllEmoji('👻');
+                        setViewAllMovies(filteredMovies.filter(m => m.genre?.toLowerCase().includes('horror') || m.section?.toLowerCase().includes('horror')));
+                        setShowViewAllScreen(true);
+                      }}
+                    />
+
+                    <SectionWithAll
+                      title="Comedy"
+                      emoji="😂"
+                      movies={filteredMovies.filter(m => m.genre?.toLowerCase().includes('comedy') || m.section?.toLowerCase().includes('comedy')).slice(0, 20)}
+                      onWatch={handleWatch}
+                      onDownload={handleDownload}
+                      onMusicClick={handleMusicClick}
+                      onSeriesClick={handleSeriesClick}
+                      onViewAll={() => {
+                        setViewAllTitle('Comedy');
+                        setViewAllEmoji('😂');
+                        setViewAllMovies(filteredMovies.filter(m => m.genre?.toLowerCase().includes('comedy') || m.section?.toLowerCase().includes('comedy')));
+                        setShowViewAllScreen(true);
+                      }}
+                    />
+
+                    <SectionWithAll
+                      title="Uganda Soaps & Drama"
+                      emoji="🇺🇬"
+                      movies={filteredMovies.filter(m => m.genre?.toLowerCase().includes('uganda') || m.section?.toLowerCase().includes('uganda')).slice(0, 20)}
+                      onWatch={handleWatch}
+                      onDownload={handleDownload}
+                      onMusicClick={handleMusicClick}
+                      onSeriesClick={handleSeriesClick}
+                      onViewAll={() => {
+                        setViewAllTitle('Uganda Soaps & Drama');
+                        setViewAllEmoji('🇺🇬');
+                        setViewAllMovies(filteredMovies.filter(m => m.genre?.toLowerCase().includes('uganda') || m.section?.toLowerCase().includes('uganda')));
+                        setShowViewAllScreen(true);
+                      }}
+                    />
+
+                    <SectionWithAll
+                      title="Nigerian Drama"
+                      emoji="🇳🇬"
+                      movies={filteredMovies.filter(m => m.genre?.toLowerCase().includes('nigerian') || m.section?.toLowerCase().includes('nigerian') || m.genre?.toLowerCase().includes('nollywood')).slice(0, 20)}
+                      onWatch={handleWatch}
+                      onDownload={handleDownload}
+                      onMusicClick={handleMusicClick}
+                      onSeriesClick={handleSeriesClick}
+                      onViewAll={() => {
+                        setViewAllTitle('Nigerian Drama');
+                        setViewAllEmoji('🇳🇬');
+                        setViewAllMovies(filteredMovies.filter(m => m.genre?.toLowerCase().includes('nigerian') || m.section?.toLowerCase().includes('nigerian') || m.genre?.toLowerCase().includes('nollywood')));
+                        setShowViewAllScreen(true);
+                      }}
+                    />
+
+                    <SectionWithAll
+                      title="High School & Teen"
+                      emoji="🎓"
+                      movies={filteredMovies.filter(m => m.genre?.toLowerCase().includes('high school') || m.section?.toLowerCase().includes('high school') || m.genre?.toLowerCase().includes('teen')).slice(0, 20)}
+                      onWatch={handleWatch}
+                      onDownload={handleDownload}
+                      onMusicClick={handleMusicClick}
+                      onSeriesClick={handleSeriesClick}
+                      onViewAll={() => {
+                        setViewAllTitle('High School & Teen');
+                        setViewAllEmoji('🎓');
+                        setViewAllMovies(filteredMovies.filter(m => m.genre?.toLowerCase().includes('high school') || m.section?.toLowerCase().includes('high school') || m.genre?.toLowerCase().includes('teen')));
+                        setShowViewAllScreen(true);
+                      }}
+                    />
+
+                    <SectionWithAll
+                      title="Sci-Fi"
+                      emoji="🚀"
+                      movies={filteredMovies.filter(m => m.genre?.toLowerCase().includes('sci-fi') || m.genre?.toLowerCase().includes('science fiction') || m.section?.toLowerCase().includes('sci-fi')).slice(0, 20)}
+                      onWatch={handleWatch}
+                      onDownload={handleDownload}
+                      onMusicClick={handleMusicClick}
+                      onSeriesClick={handleSeriesClick}
+                      onViewAll={() => {
+                        setViewAllTitle('Sci-Fi');
+                        setViewAllEmoji('🚀');
+                        setViewAllMovies(filteredMovies.filter(m => m.genre?.toLowerCase().includes('sci-fi') || m.genre?.toLowerCase().includes('science fiction') || m.section?.toLowerCase().includes('sci-fi')));
+                        setShowViewAllScreen(true);
+                      }}
+                    />
+
+                    <SectionWithAll
+                      title="Series Collection"
+                      emoji="📺"
+                      movies={groupSeriesEpisodes(filteredMovies.filter(m => m.type === 'series')).slice(0, 20)}
+                      onWatch={handleWatch}
+                      onDownload={handleDownload}
+                      onMusicClick={handleMusicClick}
+                      onSeriesClick={handleSeriesClick}
+                      onViewAll={() => {
+                        setViewAllTitle('Series Collection');
+                        setViewAllEmoji('📺');
+                        setViewAllMovies(groupSeriesEpisodes(filteredMovies.filter(m => m.type === 'series')));
+                        setShowViewAllScreen(true);
+                      }}
+                    />
+                  </>
+                )}
+              </>
+            )}
+          </>
+        )}
+
+        {/* 18+ TAB */}
+        {activeBottomTab === '18plus' && (
+          <div className="min-h-screen bg-gradient-to-b from-red-950 via-black to-black pb-24">
+            {/* 18+ Header - Modern Red Theme */}
+            <div className="sticky top-0 z-40 glass-card backdrop-blur-strong border-b border-red-500/30">
+              <div className="px-4 py-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 bg-red-500/20 border-2 border-red-500 rounded-full flex items-center justify-center">
+                    <span className="text-red-500 font-black text-lg">18+</span>
+                  </div>
+                  <h1 className="text-3xl font-black bg-gradient-to-r from-red-500 to-red-600 bg-clip-text text-transparent neon-glow mb-1">
+                    Adult Content
+                  </h1>
+                </div>
+                <p className="text-gray-400 text-sm font-medium">For mature audiences only • Age verification required</p>
+              </div>
+            </div>
+
+            {/* 18+ Content Grid - Red Theme */}
+            <div className="px-4 py-6">
+              <div className="grid grid-cols-1 gap-4 max-w-2xl mx-auto">
+                {/* All 18+ Content */}
+                <button
+                  onClick={() => handle18PlusAccess()}
+                  className="glass-card glass-card-hover rounded-3xl p-8 text-center group relative overflow-hidden slide-in-up border-2 border-red-500/30"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-red-600/20 to-pink-600/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative">
+                    <div className="w-28 h-28 mx-auto mb-6 rounded-full bg-gradient-to-br from-red-500/20 to-pink-500/20 flex items-center justify-center float-animation border-4 border-red-500/50">
+                      <AlertCircle className="w-16 h-16 text-red-400" strokeWidth={2.5} />
+                    </div>
+                    <h3 className="text-2xl font-black text-white mb-3">Create PIN to Access</h3>
+                    <p className="text-sm text-gray-400 mb-4">
+                      Set up a 4-digit PIN to unlock 18+ content
+                    </p>
+                    <div className="flex items-center justify-center gap-2 text-xs text-red-400 font-bold">
+                      <Lock className="w-3 h-3" />
+                      <span>PIN REQUIRED</span>
+                      <span>•</span>
+                      <span>{movies.filter(m => m.category === '18+' || m.ageRating === '18+').length} items</span>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Latest 18+ Content - Only show if unlocked */}
+            {is18PlusUnlocked && (
+              <div className="px-4 pb-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="h-1 w-1 bg-red-500 rounded-full animate-pulse" />
+                  <h2 className="text-2xl font-black bg-gradient-to-r from-red-500 to-red-600 bg-clip-text text-transparent">Latest Adult Content</h2>
+                  <div className="h-1 flex-1 bg-gradient-to-r from-red-500/20 to-transparent rounded-full" />
+                </div>
+                
+                {/* Content grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {groupSeriesEpisodes(movies.filter(m => m.category === '18+' || m.ageRating === '18+'))
+                    .slice(0, 10)
+                    .map(movie => (
+                      <MovieCard
+                        key={movie.id}
+                        movie={movie as any}
+                        onWatch={handleWatch}
+                        onDownload={handleDownload}
+                        onMusicClick={handleMusicClick}
+                        onSeriesClick={handleSeriesClick}
+                      />
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* BROWSE TAB - All Categories */}
+        {activeBottomTab === 'browse' && (
+          <div className="min-h-screen bg-gradient-to-b from-gray-900 via-black to-black pb-24">
+            {/* Browse Header */}
+            <div className="sticky top-0 z-40 glass-card backdrop-blur-strong border-b border-[#FFD700]/30">
+              <div className="px-4 py-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-12 h-12 bg-gradient-to-br from-[#FFD700] to-[#FFA500] rounded-full flex items-center justify-center">
+                    <Globe className="w-6 h-6 text-black" strokeWidth={2.5} />
+                  </div>
+                  <h1 className="text-3xl font-black gradient-gold neon-glow">
+                    Browse All
+                  </h1>
+                </div>
+                <p className="text-gray-400 text-sm font-medium">Explore our complete entertainment library</p>
+              </div>
+            </div>
+
+            {/* Category Grid */}
+            <div className="px-4 py-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {/* All Movies */}
+              <button
+                onClick={() => {
+                  setViewAllTitle('All Movies');
+                  setViewAllEmoji('🎬');
+                  setViewAllMovies(groupSeriesEpisodes(movies.filter(m => m.type !== 'series' && m.category !== 'music' && m.ageRating !== '18+')));
+                  setShowViewAllScreen(true);
+                }}
+                className="glass-card glass-card-hover rounded-2xl p-6 text-left group relative overflow-hidden slide-in-up"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-[#FFD700]/10 to-[#FFA500]/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#FFD700]/20 to-[#FFA500]/20 flex items-center justify-center mb-3 float-animation">
+                    <Clapperboard className="w-6 h-6 text-[#FFD700]" strokeWidth={2} />
+                  </div>
+                  <h3 className="text-lg font-black text-white mb-1">All Movies</h3>
+                  <p className="text-sm text-gray-400">
+                    {movies.filter(m => m.type !== 'series' && m.category !== 'music' && m.ageRating !== '18+').length} movies
+                  </p>
+                </div>
+              </button>
+
+              {/* Series */}
+              <button
+                onClick={() => {
+                  setViewAllTitle('Series');
+                  setViewAllEmoji('📺');
+                  setViewAllMovies(groupSeriesEpisodes(movies.filter(m => m.type === 'series' && m.ageRating !== '18+')));
+                  setShowViewAllScreen(true);
+                }}
+                className="glass-card glass-card-hover rounded-2xl p-6 text-left group relative overflow-hidden slide-in-up"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-600/10 to-pink-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600/20 to-pink-600/20 flex items-center justify-center mb-3 float-animation">
+                    <Tv className="w-6 h-6 text-purple-400" strokeWidth={2} />
+                  </div>
+                  <h3 className="text-lg font-black text-white mb-1">Series</h3>
+                  <p className="text-sm text-gray-400">
+                    {groupSeriesEpisodes(movies.filter(m => m.type === 'series' && m.ageRating !== '18+')).length} series
+                  </p>
+                </div>
+              </button>
+
+              {/* Action */}
+              <button
+                onClick={() => {
+                  setViewAllTitle('Action');
+                  setViewAllEmoji('💥');
+                  setViewAllMovies(movies.filter(m => (m.genre?.toLowerCase().includes('action') || m.section?.toLowerCase().includes('action')) && m.ageRating !== '18+' && m.category !== 'music'));
+                  setShowViewAllScreen(true);
+                }}
+                className="glass-card glass-card-hover rounded-2xl p-6 text-left group relative overflow-hidden slide-in-up"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-red-600/10 to-orange-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-600/20 to-orange-600/20 flex items-center justify-center mb-3 float-animation">
+                    <Video className="w-6 h-6 text-red-400" strokeWidth={2} />
+                  </div>
+                  <h3 className="text-lg font-black text-white mb-1">Action</h3>
+                  <p className="text-sm text-gray-400">
+                    {movies.filter(m => (m.genre?.toLowerCase().includes('action') || m.section?.toLowerCase().includes('action')) && m.ageRating !== '18+' && m.category !== 'music').length} movies
+                  </p>
+                </div>
+              </button>
+
+              {/* Horror */}
+              <button
+                onClick={() => {
+                  setViewAllTitle('Horror');
+                  setViewAllEmoji('👻');
+                  setViewAllMovies(movies.filter(m => (m.genre?.toLowerCase().includes('horror') || m.section?.toLowerCase().includes('horror')) && m.ageRating !== '18+' && m.category !== 'music'));
+                  setShowViewAllScreen(true);
+                }}
+                className="glass-card glass-card-hover rounded-2xl p-6 text-left group relative overflow-hidden slide-in-up"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-red-600/10 to-purple-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-600/20 to-purple-600/20 flex items-center justify-center mb-3 float-animation">
+                    <Skull className="w-6 h-6 text-red-400" strokeWidth={2} />
+                  </div>
+                  <h3 className="text-lg font-black text-white mb-1">Horror</h3>
+                  <p className="text-sm text-gray-400">
+                    {movies.filter(m => (m.genre?.toLowerCase().includes('horror') || m.section?.toLowerCase().includes('horror')) && m.ageRating !== '18+' && m.category !== 'music').length} items
+                  </p>
+                </div>
+              </button>
+
+              {/* Comedy */}
+              <button
+                onClick={() => {
+                  setViewAllTitle('Comedy');
+                  setViewAllEmoji('😂');
+                  setViewAllMovies(movies.filter(m => (m.genre?.toLowerCase().includes('comedy') || m.section?.toLowerCase().includes('comedy')) && m.ageRating !== '18+' && m.category !== 'music'));
+                  setShowViewAllScreen(true);
+                }}
+                className="glass-card glass-card-hover rounded-2xl p-6 text-left group relative overflow-hidden slide-in-up"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-yellow-600/10 to-orange-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-600/20 to-orange-600/20 flex items-center justify-center mb-3 float-animation">
+                    <Laugh className="w-6 h-6 text-yellow-400" strokeWidth={2} />
+                  </div>
+                  <h3 className="text-lg font-black text-white mb-1">Comedy</h3>
+                  <p className="text-sm text-gray-400">
+                    {movies.filter(m => (m.genre?.toLowerCase().includes('comedy') || m.section?.toLowerCase().includes('comedy')) && m.ageRating !== '18+' && m.category !== 'music').length} laughs
+                  </p>
+                </div>
+              </button>
+
+              {/* Sci-Fi */}
+              <button
+                onClick={() => {
+                  setViewAllTitle('Sci-Fi');
+                  setViewAllEmoji('🚀');
+                  setViewAllMovies(movies.filter(m => (m.genre?.toLowerCase().includes('sci-fi') || m.genre?.toLowerCase().includes('science fiction') || m.section?.toLowerCase().includes('sci-fi')) && m.ageRating !== '18+' && m.category !== 'music'));
+                  setShowViewAllScreen(true);
+                }}
+                className="glass-card glass-card-hover rounded-2xl p-6 text-left group relative overflow-hidden slide-in-up"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/10 to-purple-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-600/20 to-purple-600/20 flex items-center justify-center mb-3 float-animation">
+                    <Rocket className="w-6 h-6 text-indigo-400" strokeWidth={2} />
+                  </div>
+                  <h3 className="text-lg font-black text-white mb-1">Sci-Fi</h3>
+                  <p className="text-sm text-gray-400">
+                    {movies.filter(m => (m.genre?.toLowerCase().includes('sci-fi') || m.genre?.toLowerCase().includes('science fiction') || m.section?.toLowerCase().includes('sci-fi')) && m.ageRating !== '18+' && m.category !== 'music').length} films
+                  </p>
+                </div>
+              </button>
+
+              {/* Uganda Soaps */}
+              <button
+                onClick={() => {
+                  setViewAllTitle('Uganda Soaps & Drama');
+                  setViewAllEmoji('🇺🇬');
+                  setViewAllMovies(movies.filter(m => (m.genre?.toLowerCase().includes('uganda') || m.section?.toLowerCase().includes('uganda')) && m.ageRating !== '18+' && m.category !== 'music'));
+                  setShowViewAllScreen(true);
+                }}
+                className="glass-card glass-card-hover rounded-2xl p-6 text-left group relative overflow-hidden slide-in-up"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-yellow-600/10 to-red-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-600/20 to-red-600/20 flex items-center justify-center mb-3 float-animation">
+                    <Flag className="w-6 h-6 text-yellow-400" strokeWidth={2} />
+                  </div>
+                  <h3 className="text-lg font-black text-white mb-1">Uganda Drama</h3>
+                  <p className="text-sm text-gray-400">
+                    {movies.filter(m => (m.genre?.toLowerCase().includes('uganda') || m.section?.toLowerCase().includes('uganda')) && m.ageRating !== '18+' && m.category !== 'music').length} shows
+                  </p>
+                </div>
+              </button>
+
+              {/* Nigerian Drama */}
+              <button
+                onClick={() => {
+                  setViewAllTitle('Nigerian Drama');
+                  setViewAllEmoji('🇳🇬');
+                  setViewAllMovies(movies.filter(m => m.genre?.toLowerCase().includes('nigerian') || m.section?.toLowerCase().includes('nigerian') || m.genre?.toLowerCase().includes('nollywood')));
+                  setShowViewAllScreen(true);
+                }}
+                className="glass-card glass-card-hover rounded-2xl p-6 text-left group relative overflow-hidden slide-in-up"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-green-600/10 to-emerald-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-600/20 to-emerald-600/20 flex items-center justify-center mb-3 float-animation">
+                    <Film className="w-6 h-6 text-green-400" strokeWidth={2} />
+                  </div>
+                  <h3 className="text-lg font-black text-white mb-1">Nigerian Drama</h3>
+                  <p className="text-sm text-gray-400">
+                    {movies.filter(m => m.genre?.toLowerCase().includes('nigerian') || m.section?.toLowerCase().includes('nigerian') || m.genre?.toLowerCase().includes('nollywood')).length} movies
+                  </p>
+                </div>
+              </button>
+
+              {/* High School */}
+              <button
+                onClick={() => {
+                  setViewAllTitle('High School');
+                  setViewAllEmoji('🎓');
+                  setViewAllMovies(movies.filter(m => m.genre?.toLowerCase().includes('high school') || m.section?.toLowerCase().includes('high school') || m.genre?.toLowerCase().includes('teen')));
+                  setShowViewAllScreen(true);
+                }}
+                className="glass-card glass-card-hover rounded-2xl p-6 text-left group relative overflow-hidden slide-in-up"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-cyan-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600/20 to-cyan-600/20 flex items-center justify-center mb-3 float-animation">
+                    <GraduationCap className="w-6 h-6 text-blue-400" strokeWidth={2} />
+                  </div>
+                  <h3 className="text-lg font-black text-white mb-1">High School</h3>
+                  <p className="text-sm text-gray-400">
+                    {movies.filter(m => m.genre?.toLowerCase().includes('high school') || m.section?.toLowerCase().includes('high school') || m.genre?.toLowerCase().includes('teen')).length} shows
+                  </p>
+                </div>
+              </button>
+
+              {/* Music */}
+              <button
+                onClick={() => {
+                  setViewAllTitle('Music');
+                  setViewAllEmoji('🎵');
+                  setViewAllMovies(movies.filter(m => m.category === 'music'));
+                  setShowViewAllScreen(true);
+                }}
+                className="glass-card glass-card-hover rounded-2xl p-6 text-left group relative overflow-hidden slide-in-up"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-green-600/10 to-emerald-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-600/20 to-emerald-600/20 flex items-center justify-center mb-3 float-animation">
+                    <Headphones className="w-6 h-6 text-green-400" strokeWidth={2} />
+                  </div>
+                  <h3 className="text-lg font-black text-white mb-1">Music</h3>
+                  <p className="text-sm text-gray-400">
+                    {movies.filter(m => m.category === 'music').length} tracks
+                  </p>
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* KIDO TAB */}
+        {activeBottomTab === 'kido' && (
+          <KidoModeScreen
+            movies={movies}
+            onWatch={handleWatch}
+            onDownload={handleDownload}
+            onMusicClick={handleMusicClick}
+            onSeriesClick={handleSeriesClick}
+          />
+        )}
+
+        {/* MUSIC TAB */}
+        {activeBottomTab === 'music' && (
+          <SpotifyMusicScreen
+            movies={movies}
+            onMusicClick={handleMusicClick}
+            onDownload={handleDownload}
+            currentTrack={currentTrack}
+            isPlaying={isMusicPlaying}
+            onBack={() => {
+              setActiveBottomTab('home');
+              setActiveTopTab('trending');
+            }}
+          />
+        )}
+      </main>
+
+      {/* BOTTOM NAVIGATION */}
+      <FourTabBottomNav
+        activeTab={activeBottomTab}
+        onTabChange={(tab) => {
+          // If trying to access 18+ tab, always require PIN verification
+          if (tab === '18plus') {
+            // Lock 18+ section every time they try to enter
+            setIs18PlusUnlocked(false);
+            handle18PlusAccess();
+            // Don't change the tab yet - let the PIN unlock do it
+          } else {
+            // Lock 18+ when leaving
+            if (activeBottomTab === '18plus') {
+              setIs18PlusUnlocked(false);
+            }
+            
+            // Reset activeTopTab when going back to home
+            if (tab === 'home') {
+              setActiveTopTab('trending');
+              // Close ViewAllScreen if it's open
+              if (showViewAllScreen) {
+                setShowViewAllScreen(false);
+              }
+            }
+            
+            setActiveBottomTab(tab);
+          }
+        }}
+      />
+
+      {/* MODALS */}
       {showPlayer && selectedMovie && (
         <VideoPlayer
           videoUrl={selectedMovie.videoUrl}
@@ -796,413 +1529,307 @@ export default function App() {
           description={selectedMovie.description}
           year={selectedMovie.year}
           genre={selectedMovie.genre}
-          onClose={handleClosePlayer}
+          onClose={() => {
+            setShowPlayer(false);
+            setSelectedMovie(null);
+          }}
         />
       )}
 
-      {/* Auth Modal */}
       {showAuthModal && (
         <AuthModal
           onClose={() => setShowAuthModal(false)}
-          onAuthSuccess={handleAuthSuccess}
+          onAuthSuccess={(user) => {
+            setCurrentUser(user);
+            setShowAuthModal(false);
+            
+            // Check if user has a personal PIN set
+            // In a real app, this would come from the backend
+            const storedPin = localStorage.getItem(`user_pin_${user.id}`);
+            if (storedPin) {
+              setUserPersonalPin(storedPin);
+            }
+          }}
         />
       )}
 
-      {/* Admin Portal Modal */}
-      {showAdminPortal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 overflow-y-auto">
-          <div className="w-full max-w-4xl bg-gradient-to-br from-gray-900 to-black rounded-2xl border-2 border-red-600/50 my-8">
-            {/* Admin Header */}
-            <div className="flex items-center justify-between p-6 border-b border-red-600/30">
-              <div className="flex items-center gap-3">
-                <Lock className="w-6 h-6 text-red-600" />
-                <h2 className="text-2xl font-black text-red-600">ADMIN PORTAL</h2>
+      {showAgeVerification && currentUser && (
+        <AgeVerificationModal
+          onClose={() => setShowAgeVerification(false)}
+          onVerified={handleAgeVerified}
+          userId={currentUser.id}
+        />
+      )}
+
+      {showPinLock && (
+        <PinLockModal
+          onClose={() => setShowPinLock(false)}
+          onUnlock={handlePinUnlocked}
+          userPersonalPin={userPersonalPin} // Pass user's personal PIN
+        />
+      )}
+
+      {/* SET PERSONAL PIN MODAL */}
+      {showSetPersonalPin && currentUser && (
+        <SetPersonalPinModal
+          onClose={() => setShowSetPersonalPin(false)}
+          currentPin={userPersonalPin || undefined}
+          onSave={(newPin) => {
+            // Save PIN to localStorage (in real app, save to backend)
+            localStorage.setItem(`user_pin_${currentUser.id}`, newPin);
+            setUserPersonalPin(newPin);
+            alert('✅ Your personal 18+ PIN has been set successfully!');
+          }}
+        />
+      )}
+
+      {/* PROFILE MODAL (Mobile) */}
+      {showProfileMenu && currentUser && (
+        <>
+          {/* Backdrop to close */}
+          <div 
+            className="fixed inset-0 z-[60] bg-black/50" 
+            onClick={() => setShowProfileMenu(false)}
+          />
+          
+          {/* Profile Dropdown - Slides from right */}
+          <div className="fixed top-[60px] right-4 w-80 max-w-[calc(100vw-2rem)] bg-black/95 backdrop-blur-xl border border-[#FFD700]/20 rounded-2xl overflow-hidden z-[70] shadow-2xl">
+            <div className="p-6 border-b border-white/10">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#FFD700] to-[#FF4500] flex items-center justify-center">
+                  <User className="w-8 h-8 text-black" />
+                </div>
+                <div>
+                  <p className="font-black text-white">{currentUser.name}</p>
+                  <p className="text-sm text-gray-400">{currentUser.email}</p>
+                </div>
               </div>
+            </div>
+            
+            <div className="p-2">
               <button
                 onClick={() => {
-                  setShowAdminPortal(false);
-                  setIsAdminAuthenticated(false);
-                  setAdminPassword('');
+                  setShowWatchHistoryScreen(true);
+                  setShowProfileMenu(false);
                 }}
-                className="text-gray-400 hover:text-white transition-colors"
+                className="w-full px-4 py-4 text-left hover:bg-white/10 rounded-xl transition-all text-white flex items-center justify-between"
               >
-                <X className="w-6 h-6" />
+                <span className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-[#FFD700]" />
+                  <span>Watch History</span>
+                </span>
+                <span className="text-sm bg-white/10 px-2 py-1 rounded">{watchHistory.length}</span>
+              </button>
+              <button
+                onClick={() => {
+                  setShowDownloadsScreen(true);
+                  setShowProfileMenu(false);
+                }}
+                className="w-full px-4 py-4 text-left hover:bg-white/10 rounded-xl transition-all text-white flex items-center justify-between"
+              >
+                <span className="flex items-center gap-2">
+                  <DownloadIcon className="w-4 h-4 text-cyan-400" />
+                  <span>Downloads</span>
+                </span>
+                <span className="text-sm bg-white/10 px-2 py-1 rounded">{downloads.length}</span>
+              </button>
+              <button
+                onClick={() => {
+                  setShowSetPersonalPin(true);
+                  setShowProfileMenu(false);
+                }}
+                className="w-full px-4 py-4 text-left hover:bg-white/10 rounded-xl transition-all text-white flex items-center justify-between"
+              >
+                <span className="flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-red-400" />
+                  <span>{userPersonalPin ? 'Change' : 'Set'} 18+ PIN</span>
+                </span>
+                <span className="text-xs bg-red-500/20 px-2 py-1 rounded text-red-400">
+                  {userPersonalPin ? '✓ Set' : 'Not Set'}
+                </span>
               </button>
             </div>
-
-            <div className="p-6">
-              {!isAdminAuthenticated ? (
-                <div className="max-w-md mx-auto">
-                  <p className="text-gray-400 mb-4">Enter admin password to access the portal</p>
-                  <input
-                    type="password"
-                    value={adminPassword}
-                    onChange={(e) => setAdminPassword(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleAdminLogin()}
-                    placeholder="Admin Password"
-                    className="w-full px-4 py-3 bg-white/10 border border-red-600/30 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-red-600 mb-4"
-                  />
-                  <button
-                    onClick={handleAdminLogin}
-                    className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-3 rounded-xl hover:shadow-lg hover:shadow-red-600/50 transition-all font-bold"
-                  >
-                    LOGIN
-                  </button>
-                </div>
-              ) : (
-                <div>
-                  {/* Admin Tabs */}
-                  <div className="flex gap-4 mb-6 border-b border-red-600/30 overflow-x-auto">
-                    <button
-                      onClick={() => setAdminTab('add')}
-                      className={`px-6 py-3 font-bold transition-colors whitespace-nowrap ${
-                        adminTab === 'add'
-                          ? 'text-red-600 border-b-2 border-red-600'
-                          : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      {editingMovie ? 'EDIT MOVIE' : 'ADD MOVIE'}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setAdminTab('edit');
-                        setEditingMovie(null);
-                      }}
-                      className={`px-6 py-3 font-bold transition-colors whitespace-nowrap ${
-                        adminTab === 'edit'
-                          ? 'text-red-600 border-b-2 border-red-600'
-                          : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      MANAGE MOVIES
-                    </button>
-                    <button
-                      onClick={() => {
-                        setAdminTab('users');
-                        fetchUsers();
-                      }}
-                      className={`px-6 py-3 font-bold transition-colors whitespace-nowrap ${
-                        adminTab === 'users'
-                          ? 'text-red-600 border-b-2 border-red-600'
-                          : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      MANAGE USERS
-                    </button>
-                    <button
-                      onClick={() => setAdminTab('background')}
-                      className={`px-6 py-3 font-bold transition-colors whitespace-nowrap ${
-                        adminTab === 'background'
-                          ? 'text-red-600 border-b-2 border-red-600'
-                          : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      BACKGROUND
-                    </button>
-                  </div>
-
-                  {/* Add/Edit Movie Tab */}
-                  {adminTab === 'add' && (
-                    <div className="space-y-4">
-                      {editingMovie && (
-                        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 mb-4">
-                          <p className="text-yellow-500 font-bold">Editing: {editingMovie.title}</p>
-                          <button
-                            onClick={() => {
-                              setEditingMovie(null);
-                              setAdminFormData({
-                                title: '',
-                                description: '',
-                                videoUrl: '',
-                                thumbnailUrl: '',
-                                genre: '',
-                                year: '',
-                                type: 'movie',
-                                fileSize: ''
-                              });
-                            }}
-                            className="text-sm text-yellow-500 hover:text-yellow-400 mt-2"
-                          >
-                            Cancel editing
-                          </button>
-                        </div>
-                      )}
-
-                      <input
-                        type="text"
-                        value={adminFormData.title}
-                        onChange={(e) => handleAdminFormChange('title', e.target.value)}
-                        placeholder="Movie Title *"
-                        className="w-full px-4 py-3 bg-white/10 border border-red-600/30 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-red-600"
-                      />
-                      <textarea
-                        value={adminFormData.description}
-                        onChange={(e) => handleAdminFormChange('description', e.target.value)}
-                        placeholder="Description"
-                        rows={3}
-                        className="w-full px-4 py-3 bg-white/10 border border-red-600/30 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-red-600 resize-none"
-                      />
-                      <input
-                        type="text"
-                        value={adminFormData.videoUrl}
-                        onChange={(e) => handleAdminFormChange('videoUrl', e.target.value)}
-                        placeholder="AWS Video URL *"
-                        className="w-full px-4 py-3 bg-white/10 border border-red-600/30 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-red-600"
-                      />
-                      <input
-                        type="text"
-                        value={adminFormData.thumbnailUrl}
-                        onChange={(e) => handleAdminFormChange('thumbnailUrl', e.target.value)}
-                        placeholder="Thumbnail Image URL"
-                        className="w-full px-4 py-3 bg-white/10 border border-red-600/30 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-red-600"
-                      />
-                      <div className="grid grid-cols-2 gap-4">
-                        <input
-                          type="text"
-                          value={adminFormData.genre}
-                          onChange={(e) => handleAdminFormChange('genre', e.target.value)}
-                          placeholder="Genre"
-                          className="w-full px-4 py-3 bg-white/10 border border-red-600/30 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-red-600"
-                        />
-                        <input
-                          type="text"
-                          value={adminFormData.year}
-                          onChange={(e) => handleAdminFormChange('year', e.target.value)}
-                          placeholder="Year"
-                          className="w-full px-4 py-3 bg-white/10 border border-red-600/30 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-red-600"
-                        />
-                      </div>
-                      <input
-                        type="text"
-                        value={adminFormData.fileSize}
-                        onChange={(e) => handleAdminFormChange('fileSize', e.target.value)}
-                        placeholder="File Size (e.g., 1.5 GB)"
-                        className="w-full px-4 py-3 bg-white/10 border border-red-600/30 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-red-600"
-                      />
-                      
-                      <div className="border-t border-red-600/30 pt-4 mt-6">
-                        <p className="text-gray-400 text-sm mb-2">Confirm password to {editingMovie ? 'update' : 'add'} movie:</p>
-                        <input
-                          type="password"
-                          value={confirmPassword}
-                          onChange={(e) => {
-                            setConfirmPassword(e.target.value);
-                            setShowPasswordError(false);
-                          }}
-                          placeholder="Enter admin password"
-                          className={`w-full px-4 py-3 bg-white/10 border rounded-xl text-white placeholder-gray-500 focus:outline-none mb-4 ${
-                            showPasswordError ? 'border-red-500' : 'border-red-600/30 focus:border-red-600'
-                          }`}
-                        />
-                        {showPasswordError && (
-                          <p className="text-red-500 text-sm mb-4">Password required</p>
-                        )}
-                        <button
-                          onClick={editingMovie ? handleEditMovie : handleAddMovie}
-                          className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-3 rounded-xl hover:shadow-lg hover:shadow-red-600/50 transition-all font-bold flex items-center justify-center gap-2"
-                        >
-                          <Save className="w-5 h-5" />
-                          {editingMovie ? 'UPDATE MOVIE' : 'ADD MOVIE'}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Manage Movies Tab */}
-                  {adminTab === 'edit' && (
-                    <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
-                      {movies.length === 0 ? (
-                        <p className="text-gray-400 text-center py-8">No movies to manage</p>
-                      ) : (
-                        movies.map((movie) => (
-                          <div
-                            key={movie.id}
-                            className="bg-white/5 border border-red-600/30 rounded-xl p-4 hover:border-red-600/50 transition-colors"
-                          >
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="flex-1">
-                                <h4 className="font-bold text-white mb-1">{movie.title}</h4>
-                                <p className="text-sm text-gray-400 mb-2 line-clamp-2">{movie.description}</p>
-                                <div className="flex items-center gap-3 text-xs text-gray-500">
-                                  <span className="bg-red-600/20 text-red-400 px-2 py-1 rounded">{movie.genre}</span>
-                                  <span>{movie.year}</span>
-                                  {movie.fileSize && <span>{movie.fileSize}</span>}
-                                </div>
-                              </div>
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => selectMovieForEdit(movie)}
-                                  className="p-2 bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-400 rounded-lg transition-colors"
-                                  title="Edit"
-                                >
-                                  <Edit2 className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteMovie(movie.id)}
-                                  className="p-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg transition-colors"
-                                  title="Delete"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  )}
-
-                  {/* Manage Users Tab */}
-                  {adminTab === 'users' && (
-                    <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
-                      {usersLoading ? (
-                        <div className="text-center py-20">
-                          <div className="inline-block w-12 h-12 border-4 border-[#FFD700] border-t-transparent rounded-full animate-spin" />
-                          <p className="mt-4 text-gray-400">Loading users...</p>
-                        </div>
-                      ) : users.length === 0 ? (
-                        <p className="text-gray-400 text-center py-8">No users to manage</p>
-                      ) : (
-                        users.map((user) => (
-                          <div
-                            key={user.id}
-                            className="bg-white/5 border border-red-600/30 rounded-xl p-4 hover:border-red-600/50 transition-colors"
-                          >
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="flex-1">
-                                <h4 className="font-bold text-white mb-1">{user.name}</h4>
-                                <p className="text-sm text-gray-400 mb-2 line-clamp-2">{user.email}</p>
-                                <div className="flex items-center gap-3 text-xs text-gray-500">
-                                  <span className="bg-red-600/20 text-red-400 px-2 py-1 rounded">{user.isBlocked ? 'Blocked' : 'Active'}</span>
-                                  <span>{new Date(user.createdAt).toLocaleDateString()}</span>
-                                  {user.blockedAt && <span>Blocked on {new Date(user.blockedAt).toLocaleDateString()}</span>}
-                                  {user.unblockedAt && <span>Unblocked on {new Date(user.unblockedAt).toLocaleDateString()}</span>}
-                                </div>
-                              </div>
-                              <div className="flex gap-2">
-                                {user.isBlocked ? (
-                                  <button
-                                    onClick={() => handleUnblockUser(user.id)}
-                                    className="p-2 bg-green-600/20 hover:bg-green-600/30 text-green-400 rounded-lg transition-colors"
-                                    title="Unblock"
-                                  >
-                                    <CheckCircle className="w-4 h-4" />
-                                  </button>
-                                ) : (
-                                  <button
-                                    onClick={() => handleBlockUser(user.id)}
-                                    className="p-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg transition-colors"
-                                    title="Block"
-                                  >
-                                    <Ban className="w-4 h-4" />
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  )}
-
-                  {/* Background Tab */}
-                  {adminTab === 'background' && (
-                    <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
-                      <div className="bg-white/5 border border-red-600/30 rounded-xl p-4 hover:border-red-600/50 transition-colors">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1">
-                            <h4 className="font-bold text-white mb-1">Background Settings</h4>
-                            <p className="text-sm text-gray-400 mb-2 line-clamp-2">Configure the background for the portal</p>
-                            <div className="flex items-center gap-3 text-xs text-gray-500">
-                              <span className="bg-red-600/20 text-red-400 px-2 py-1 rounded">{backgroundType}</span>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleSaveBackground()}
-                              className="p-2 bg-green-600/20 hover:bg-green-600/30 text-green-400 rounded-lg transition-colors"
-                              title="Save"
-                            >
-                              <Save className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-4">
-                          <label className="text-gray-400">Type:</label>
-                          <select
-                            value={backgroundType}
-                            onChange={(e) => setBackgroundType(e.target.value as 'video' | 'image')}
-                            className="w-full px-4 py-3 bg-white/10 border border-red-600/30 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-red-600"
-                          >
-                            <option value="image">Image</option>
-                            <option value="video">Video</option>
-                          </select>
-                        </div>
-
-                        {backgroundType === 'image' && (
-                          <div className="flex items-center gap-4">
-                            <label className="text-gray-400">Image URL:</label>
-                            <input
-                              type="text"
-                              value={backgroundImageUrl}
-                              onChange={(e) => setBackgroundImageUrl(e.target.value)}
-                              placeholder="Enter image URL"
-                              className="w-full px-4 py-3 bg-white/10 border border-red-600/30 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-red-600"
-                            />
-                          </div>
-                        )}
-
-                        {backgroundType === 'video' && (
-                          <div className="flex items-center gap-4">
-                            <label className="text-gray-400">Video URL:</label>
-                            <input
-                              type="text"
-                              value={backgroundVideoUrl}
-                              onChange={(e) => setBackgroundVideoUrl(e.target.value)}
-                              placeholder="Enter video URL"
-                              className="w-full px-4 py-3 bg-white/10 border border-red-600/30 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-red-600"
-                            />
-                          </div>
-                        )}
-
-                        <div className="flex items-center gap-4">
-                          <label className="text-gray-400">Admin Password:</label>
-                          <input
-                            type="password"
-                            value={backgroundPassword}
-                            onChange={(e) => setBackgroundPassword(e.target.value)}
-                            placeholder="Enter admin password"
-                            className="w-full px-4 py-3 bg-white/10 border border-red-600/30 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-red-600"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+            
+            <div className="p-4 border-t border-white/10">
+              <button
+                onClick={() => {
+                  handleLogout();
+                  setShowProfileMenu(false);
+                }}
+                className="w-full px-4 py-3 text-center bg-red-500/20 hover:bg-red-500/30 rounded-xl transition-all text-red-400 font-bold"
+              >
+                🚪 Logout
+              </button>
+              <button
+                onClick={() => setShowProfileMenu(false)}
+                className="w-full px-4 py-3 text-center hover:bg-white/10 rounded-xl transition-all text-gray-400 font-bold mt-2"
+              >
+                Cancel
+              </button>
             </div>
           </div>
+        </>
+      )}
+
+      {/* VIEW ALL SCREEN */}
+      {showViewAllScreen && (
+        <div className="fixed inset-0 z-[100] bg-black">
+          <ViewAllScreen
+            title={viewAllTitle}
+            emoji={viewAllEmoji}
+            movies={viewAllMovies}
+            onWatch={handleWatch}
+            onDownload={handleDownload}
+            onSeriesClick={handleSeriesClick}
+            onBack={() => {
+              setShowViewAllScreen(false);
+              
+              // Lock 18+ and return to home with trending tab
+              if (viewAllTitle === '18+ Content') {
+                setIs18PlusUnlocked(false);
+                setActiveBottomTab('home');
+                setActiveTopTab('trending');
+              }
+            }}
+          />
         </div>
       )}
 
-      {/* Footer */}
-      <footer className="bg-black/50 border-t border-[#FFD700]/20 py-8 mt-20">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="text-gray-400">
-            © 2025 THEE ARCHIVE. Stream & Download Your Favorite Movies.
-          </p>
-        </div>
-      </footer>
+      {/* SERIES DETAIL SCREEN */}
+      {showSeriesDetail && selectedSeries && (
+        <SeriesDetailScreen
+          series={{
+            id: selectedSeries.id,
+            title: selectedSeries.title,
+            description: selectedSeries.description,
+            thumbnailUrl: selectedSeries.thumbnailUrl,
+            genre: selectedSeries.genre,
+            year: selectedSeries.year,
+            rating: selectedSeries.rating,
+            episodes: selectedSeries.episodes || []
+          }}
+          onBack={() => {
+            setShowSeriesDetail(false);
+            setSelectedSeries(null);
+          }}
+          onPlayEpisode={handlePlayEpisode}
+          onDownloadEpisode={handleDownloadEpisode}
+        />
+      )}
 
-      {/* Google AdSense Script - Add your AdSense code here */}
-      <script
-        async
-        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXX"
-        crossOrigin="anonymous"
-      ></script>
+      {/* WATCH HISTORY SCREEN */}
+      {showWatchHistoryScreen && (
+        <div className="fixed inset-0 z-[100] bg-black">
+          <WatchHistoryScreen
+            history={watchHistory}
+            onPlay={handleWatch}
+            onDelete={handleDeleteFromHistory}
+            onBack={() => setShowWatchHistoryScreen(false)}
+          />
+        </div>
+      )}
+
+      {/* DOWNLOADS SCREEN */}
+      {showDownloadsScreen && (
+        <div className="fixed inset-0 z-[100] bg-black">
+          <DownloadsScreen
+            downloads={downloads}
+            onPlay={handleWatch}
+            onDelete={handleDeleteDownload}
+            onBack={() => setShowDownloadsScreen(false)}
+          />
+        </div>
+      )}
+
+      {/* MUSIC PLAYER */}
+      {showMusicPlayer && currentTrack && (
+        <MusicPlayer
+          currentTrack={{
+            id: currentTrack.id,
+            title: currentTrack.title,
+            artist: currentTrack.artist || currentTrack.genre,
+            thumbnail: currentTrack.thumbnailUrl,
+            fileUrl: currentTrack.videoUrl,
+            contentType: currentTrack.contentType || 'music-video',
+            duration: currentTrack.duration
+          }}
+          queue={musicQueue.map(track => ({
+            id: track.id,
+            title: track.title,
+            artist: track.artist || track.genre,
+            thumbnail: track.thumbnailUrl,
+            fileUrl: track.videoUrl,
+            contentType: track.contentType || 'music-video',
+            duration: track.duration
+          }))}
+          isPlaying={isMusicPlaying}
+          onPlayPause={() => setIsMusicPlaying(!isMusicPlaying)}
+          onNext={() => {
+            const currentIndex = musicQueue.findIndex(t => t.id === currentTrack.id);
+            const nextIndex = (currentIndex + 1) % musicQueue.length;
+            setCurrentTrack(musicQueue[nextIndex]);
+            setIsMusicPlaying(true);
+          }}
+          onPrevious={() => {
+            const currentIndex = musicQueue.findIndex(t => t.id === currentTrack.id);
+            const prevIndex = (currentIndex - 1 + musicQueue.length) % musicQueue.length;
+            setCurrentTrack(musicQueue[prevIndex]);
+            setIsMusicPlaying(true);
+          }}
+          onSeek={(time) => {
+            // Seek handled by player internally
+          }}
+          onVolumeChange={(volume) => {
+            // Volume handled by player internally
+          }}
+          onClose={() => {
+            setShowMusicPlayer(false);
+            setIsMusicPlaying(false);
+          }}
+          onTrackEnd={() => {
+            // Auto-play next track
+            const currentIndex = musicQueue.findIndex(t => t.id === currentTrack.id);
+            const nextIndex = (currentIndex + 1) % musicQueue.length;
+            setCurrentTrack(musicQueue[nextIndex]);
+            setIsMusicPlaying(true);
+          }}
+        />
+      )}
+      
+      {/* TEST MUSIC ADDER MODAL */}
+      {showAddTestMusic && <AddTestMusic />}
+
+      {/* MOVIE DETAIL MODAL */}
+      {showMovieDetail && selectedMovieDetail && (
+        <MovieDetailModal
+          movie={selectedMovieDetail}
+          onClose={() => {
+            setShowMovieDetail(false);
+            setSelectedMovieDetail(null);
+          }}
+          onWatch={(movie) => {
+            setShowMovieDetail(false);
+            handleWatch(movie);
+          }}
+          onDownload={(movie) => {
+            setShowMovieDetail(false);
+            handleDownload(movie);
+          }}
+        />
+      )}
+
+      {/* FOOTER - Only show on main screens (not on player/modals) */}
+      {!showPlayer && !showSeriesDetail && !showViewAllScreen && !showDownloadsScreen && !showWatchHistoryScreen && !showMovieDetail && (
+        <Footer
+          onNavigateToPrivacy={() => setLegalPage('privacy')}
+          onNavigateToTerms={() => setLegalPage('terms')}
+          onNavigateToAbout={() => setLegalPage('about')}
+          onNavigateToContact={() => setLegalPage('contact')}
+        />
+      )}
+
+      {/* COOKIE CONSENT BANNER */}
+      <CookieConsent onNavigateToPrivacy={() => setLegalPage('privacy')} />
     </div>
   );
 }

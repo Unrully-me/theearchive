@@ -86,40 +86,6 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
     }
   }, [mode, shouldAutoPlay]);
 
-  // Autoplay requested by parent (user click). We try muted play first, then unmute.
-  useEffect(() => {
-    if (!autoPlayRequested || !videoRef.current) return;
-    const video = videoRef.current;
-    let handled = false;
-    const tryPlay = async () => {
-      try {
-        // Try muted play first (works on most browsers)
-        const prevMuted = video.muted;
-        video.muted = true;
-        await video.play();
-        setIsPlaying(true);
-        handled = true;
-        try { onAutoPlayHandled && onAutoPlayHandled(); } catch (e) {}
-        // Keep muted state until user unmutes
-        if (!prevMuted) setIsMuted(true);
-      } catch (err) {
-        console.debug('Muted autoplay blocked, trying normal play', err);
-        try {
-          video.muted = false;
-          await video.play();
-          setIsPlaying(true);
-          handled = true;
-          try { onAutoPlayHandled && onAutoPlayHandled(); } catch (e) {}
-        } catch (err2) {
-          console.debug('Autoplay prevented:', err2);
-          try { onAutoPlayHandled && onAutoPlayHandled(); } catch (e) {}
-        }
-      }
-    };
-    void tryPlay();
-    return () => { if (!handled) { try { onAutoPlayHandled && onAutoPlayHandled(); } catch (e) {} } };
-  }, [autoPlayRequested]);
-
   // Restore saved time when video loads
   useEffect(() => {
     if (videoRef.current && savedTime > 0) {

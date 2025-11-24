@@ -69,7 +69,7 @@ app.get("/make-server-4d451974/movies/:id", async (c) => {
 app.post("/make-server-4d451974/movies", async (c) => {
   try {
     const body = await c.req.json();
-    const { title, description, videoUrl, thumbnailUrl, genre, year, type, fileSize } = body;
+    const { title, description, videoUrl, thumbnailUrl, genre, year, type, fileSize, category, ageRating, section, episodes, seriesTitle, seasonNumber, episodeNumber } = body;
 
     if (!title || !videoUrl) {
       return c.json({ success: false, error: "Title and video URL are required" }, 400);
@@ -87,7 +87,16 @@ app.post("/make-server-4d451974/movies", async (c) => {
       year: year || new Date().getFullYear().toString(),
       type: type || "movie", // movie, series, documentary
       fileSize: fileSize || "",
+      category: category || undefined,
+      ageRating: ageRating || undefined,
+      section: section || undefined,
+      episodes: episodes || [], // For series: array of episodes
+      // Series fields
+      seriesTitle: seriesTitle || undefined,
+      seasonNumber: seasonNumber || undefined,
+      episodeNumber: episodeNumber || undefined,
       createdAt: new Date().toISOString(),
+      uploadedAt: new Date().toISOString(),
     };
 
     await kv.set(`movie:${id}`, movie);
@@ -423,6 +432,276 @@ app.post("/make-server-4d451974/admin/background", async (c) => {
       success: false, 
       error: String(error) 
     }, 500);
+  }
+});
+
+// ===== USER ACTIVITY TRACKING ROUTES =====
+
+// Track user activity (watch, download)
+app.post("/make-server-4d451974/activity/track", async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    
+    if (!accessToken) {
+      return c.json({ success: false, error: "No token provided" }, 401);
+    }
+
+    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+
+    if (error || !user) {
+      return c.json({ success: false, error: "Invalid token" }, 401);
+    }
+
+    const { movieId, action, movieTitle } = await c.req.json();
+
+    if (!movieId || !action) {
+      return c.json({ success: false, error: "Movie ID and action are required" }, 400);
+    }
+
+    // Create activity record
+    const activityId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const activity = {
+      id: activityId,
+      userId: user.id,
+      movieId,
+      movieTitle: movieTitle || '',
+      action, // 'watch' or 'download'
+      timestamp: new Date().toISOString(),
+    };
+
+    // Save activity
+    await kv.set(`activity:${user.id}:${activityId}`, activity);
+
+    // Update movie stats
+    const movie = await kv.get(`movie:${movieId}`);
+    if (movie) {
+      const updatedMovie = {
+        ...movie,
+        views: (movie.views || 0) + (action === 'watch' ? 1 : 0),
+        downloads: (movie.downloads || 0) + (action === 'download' ? 1 : 0),
+      };
+      await kv.set(`movie:${movieId}`, updatedMovie);
+    }
+
+    // Update user stats
+    const userStats = await kv.get(`user_stats:${user.id}`) || { 
+      totalWatches: 0, 
+      totalDownloads: 0,
+      lastActive: null 
+    };
+    
+    const updatedStats = {
+      ...userStats,
+      totalWatches: userStats.totalWatches + (action === 'watch' ? 1 : 0),
+      totalDownloads: userStats.totalDownloads + (action === 'download' ? 1 : 0),
+      lastActive: new Date().toISOString(),
+    };
+    
+    await kv.set(`user_stats:${user.id}`, updatedStats);
+
+    console.log(`Activity tracked: User ${user.id} ${action}ed movie ${movieId}`);
+    
+    return c.json({ success: true, activity });
+  } catch (error) {
+    console.log(`Error tracking activity: ${error}`);
+    return c.json({ success: false, error: String(error) }, 500);
+  }
+});
+
+// Get user activity history (for a specific user)
+app.get("/make-server-4d451974/admin/users/:id/activity", async (c) => {
+  try {
+    const userId = c.req.param("id");
+    console.log(`Fetching activity for user: ${userId}`);
+    
+    const activitiesData = await kv.getByPrefix(`activity:${userId}:`);
+    const activities = Array.isArray(activitiesData) ? activitiesData.map(item => item.value || item) : [];
+    
+    // Sort by timestamp descending
+    activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    
+    // Get user stats
+    const userStats = await kv.get(`user_stats:${userId}`) || { 
+      totalWatches: 0, 
+      totalDownloads: 0,
+      lastActive: null 
+    };
+    
+    console.log(`Found ${activities.length} activities for user ${userId}`);
+    return c.json({ 
+      success: true, 
+      activities,
+      stats: userStats
+    });
+  } catch (error) {
+    console.log(`Error fetching user activity: ${error}`);
+    return c.json({ success: false, error: String(error) }, 500);
+  }
+});
+
+// Get analytics report (all users overview)
+app.get("/make-server-4d451974/admin/analytics/report", async (c) => {
+  try {
+    console.log("Generating analytics report...");
+    
+    // Get all users
+    const usersData = await kv.getByPrefix("user:");
+    const users = Array.isArray(usersData) ? usersData.map(item => item.value || item) : [];
+    
+    // Get all movies
+    const moviesData = await kv.getByPrefix("movie:");
+    const movies = Array.isArray(moviesData) ? moviesData.map(item => item.value || item) : [];
+    
+    // Get all activities
+    const activitiesData = await kv.getByPrefix("activity:");
+    const activities = Array.isArray(activitiesData) ? activitiesData.map(item => item.value || item) : [];
+    
+    // Calculate metrics
+    const totalUsers = users.length;
+    const totalMovies = movies.length;
+    const totalViews = activities.filter(a => a.action === 'watch').length;
+    const totalDownloads = activities.filter(a => a.action === 'download').length;
+    
+    // Get top movies by activity
+    const movieActivity = {};
+    activities.forEach(activity => {
+      if (!movieActivity[activity.movieId]) {
+        movieActivity[activity.movieId] = { views: 0, downloads: 0 };
+      }
+      if (activity.action === 'watch') movieActivity[activity.movieId].views++;
+      if (activity.action === 'download') movieActivity[activity.movieId].downloads++;
+    });
+    
+    // Get top 10 movies
+    const topMovies = Object.entries(movieActivity)
+      .map(([movieId, stats]) => {
+        const movie = movies.find(m => m.id === movieId);
+        return {
+          movieId,
+          movieTitle: movie?.title || 'Unknown',
+          views: stats.views,
+          downloads: stats.downloads,
+          totalActivity: stats.views + stats.downloads,
+        };
+      })
+      .sort((a, b) => b.totalActivity - a.totalActivity)
+      .slice(0, 10);
+    
+    // Get most active users
+    const userActivity = {};
+    activities.forEach(activity => {
+      if (!userActivity[activity.userId]) {
+        userActivity[activity.userId] = { watches: 0, downloads: 0 };
+      }
+      if (activity.action === 'watch') userActivity[activity.userId].watches++;
+      if (activity.action === 'download') userActivity[activity.userId].downloads++;
+    });
+    
+    const topUsers = Object.entries(userActivity)
+      .map(([userId, stats]) => {
+        const user = users.find(u => u.id === userId);
+        return {
+          userId,
+          userName: user?.name || 'Unknown',
+          userEmail: user?.email || 'Unknown',
+          watches: stats.watches,
+          downloads: stats.downloads,
+          totalActivity: stats.watches + stats.downloads,
+        };
+      })
+      .sort((a, b) => b.totalActivity - a.totalActivity)
+      .slice(0, 10);
+    
+    // Recent activities (last 50)
+    const recentActivities = activities
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 50)
+      .map(activity => {
+        const user = users.find(u => u.id === activity.userId);
+        const movie = movies.find(m => m.id === activity.movieId);
+        return {
+          ...activity,
+          userName: user?.name || 'Unknown',
+          userEmail: user?.email || 'Unknown',
+          movieTitle: movie?.title || activity.movieTitle || 'Unknown',
+        };
+      });
+    
+    const report = {
+      overview: {
+        totalUsers,
+        totalMovies,
+        totalViews,
+        totalDownloads,
+        totalActivity: totalViews + totalDownloads,
+      },
+      topMovies,
+      topUsers,
+      recentActivities,
+      generatedAt: new Date().toISOString(),
+    };
+    
+    console.log("Analytics report generated successfully");
+    return c.json({ success: true, report });
+  } catch (error) {
+    console.log(`Error generating analytics report: ${error}`);
+    return c.json({ success: false, error: String(error) }, 500);
+  }
+});
+
+// ==================== AD SETTINGS ROUTES ====================
+
+// Get ad settings
+app.get("/make-server-4d451974/ad-settings", async (c) => {
+  try {
+    console.log("Fetching ad settings...");
+    const settings = await kv.get("ad_settings");
+    
+    // Return default settings if none exist
+    if (!settings) {
+      const defaultSettings = {
+        adsEnabled: false,
+        propellerAdsEnabled: false,
+        propellerAdsPublisherId: '',
+        adsterraEnabled: false,
+        adsterraPublisherId: '',
+        showAdBeforeVideo: false,
+        showAdBetweenContent: false,
+        showAdOnDownload: false,
+        showBannerAds: false,
+        showPopunderAds: false,
+        videoAdFrequency: 1,
+        downloadAdFrequency: 1,
+        skipAdAfterSeconds: 5,
+        adBlockerDetection: false,
+      };
+      return c.json({ success: true, settings: defaultSettings });
+    }
+    
+    return c.json({ success: true, settings });
+  } catch (error) {
+    console.log(`Error fetching ad settings: ${error}`);
+    return c.json({ success: false, error: String(error) }, 500);
+  }
+});
+
+// Update ad settings
+app.put("/make-server-4d451974/ad-settings", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { settings } = body;
+    
+    if (!settings) {
+      return c.json({ success: false, error: "Settings data required" }, 400);
+    }
+    
+    console.log("Updating ad settings:", settings);
+    await kv.set("ad_settings", settings);
+    
+    return c.json({ success: true, message: "Ad settings updated successfully" });
+  } catch (error) {
+    console.log(`Error updating ad settings: ${error}`);
+    return c.json({ success: false, error: String(error) }, 500);
   }
 });
 
