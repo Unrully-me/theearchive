@@ -323,8 +323,48 @@ export default function App() {
     localStorage.setItem('downloads', JSON.stringify(updatedDownloads));
     
     alert(`Downloading: ${movie.title}`);
-    // Trigger actual download
-    window.open(movie.videoUrl, '_blank');
+
+    // Start a robust client-side download attempt.
+    // 1) Try a direct anchor click with `download` (works when same-origin or headers allow it)
+    // 2) If that doesn't start, attempt to fetch -> blob -> objectURL fallback.
+    // 3) Last-resort: open in a new tab/window.
+    const safeFilename = `${movie.title.replace(/[^a-z0-9\.\-_/]/gi, '_')}.mp4`;
+
+    try {
+      const a = document.createElement('a');
+      a.href = movie.videoUrl;
+      a.download = safeFilename;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      // Schedule a fallback download because cross-origin responses often prevent `download` behavior.
+      setTimeout(async () => {
+        try {
+          const resp = await fetch(movie.videoUrl);
+          if (!resp.ok) throw new Error(`Failed to fetch: ${resp.status}`);
+          const blob = await resp.blob();
+          const url = URL.createObjectURL(blob);
+          const a2 = document.createElement('a');
+          a2.href = url;
+          a2.download = safeFilename;
+          document.body.appendChild(a2);
+          a2.click();
+          setTimeout(() => {
+            URL.revokeObjectURL(url);
+            if (a2.parentNode) a2.parentNode.removeChild(a2);
+          }, 2500);
+        } catch (err) {
+          console.warn('Download fallback failed; opening in new tab:', err);
+          window.open(movie.videoUrl, '_blank');
+        }
+      }, 200);
+    } catch (err) {
+      console.warn('Direct download attempt failed, opening in new tab:', err);
+      window.open(movie.videoUrl, '_blank');
+    }
   };
 
   const trackActivity = async (movieId: string, action: 'watch' | 'download', movieTitle: string) => {
