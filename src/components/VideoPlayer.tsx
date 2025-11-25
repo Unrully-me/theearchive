@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Play, Pause, Volume2, VolumeX, Maximize, Minimize2, SkipBack, SkipForward } from 'lucide-react';
 
 interface VideoPlayerProps {
-  videoUrl: string;
-  title: string;
-  description: string;
-  year: string;
-  genre: string;
+  videoUrl?: string;
+  title?: string;
+  description?: string;
+  year?: string;
+  genre?: string;
   onClose: () => void;
 }
 
@@ -175,6 +175,9 @@ export function VideoPlayer({ videoUrl, title, description, year, genre, onClose
       video.removeEventListener('leavepictureinpicture', handleLeavePiP);
     };
   }, []);
+
+  // If no video URL supplied, render nothing (defensive runtime guard)
+  if (!videoUrl) return null;
 
   // Autoplay when video is loaded
   useEffect(() => {

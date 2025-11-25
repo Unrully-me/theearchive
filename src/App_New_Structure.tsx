@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Film } from 'lucide-react';
 import { projectId, publicAnonKey } from './utils/supabase/info';
 import { VideoPlayer } from './components/VideoPlayer';
 import { AuthModal } from './components/AuthModal';
 import { FourTabBottomNav } from './components/FourTabBottomNav';
+import type { Movie, DownloadedMovie, User } from './types/movie';
 import { SearchBar } from './components/SearchBar';
 import { TopCategoryTabs } from './components/TopCategoryTabs';
 import { CategoryGrid } from './components/CategoryGrid';
@@ -12,32 +13,7 @@ import { ProfileMenuList } from './components/ProfileMenuList';
 import { DownloadsScreen } from './components/DownloadsScreen';
 import { MovieCard } from './components/MovieCard';
 
-interface Movie {
-  id: string;
-  title: string;
-  description: string;
-  videoUrl: string;
-  thumbnailUrl: string;
-  genre: string;
-  year: string;
-  type: string;
-  fileSize?: string;
-  category?: 'movie' | 'series' | 'music';
-  ageRating?: 'G' | 'PG' | 'PG-13' | 'R' | '18+' | 'Kids';
-  section?: string;
-  uploadedAt?: string;
-}
-
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  accessToken?: string;
-}
-
-interface DownloadedMovie extends Movie {
-  downloadedAt: string;
-}
+// using shared Movie, DownloadedMovie, User types from src/types/movie
 
 export default function App() {
   // Navigation State
@@ -47,7 +23,7 @@ export default function App() {
   // Data States
   const [movies, setMovies] = useState<Movie[]>([]);
   const [downloads, setDownloads] = useState<DownloadedMovie[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   
   // Player States
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
@@ -61,7 +37,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   
   // Admin Portal States (keep existing functionality)
-  const [redDotClicks, setRedDotClicks] = useState(0);
+  const [, setRedDotClicks] = useState(0);
   
   const API_URL = `https://${projectId}.supabase.co/functions/v1/make-server-4d451974`;
 
@@ -164,7 +140,7 @@ export default function App() {
     localStorage.removeItem('accessToken');
   };
 
-  const handleMusicClick = (movie: Movie) => {
+  const handleMusicClick = (_movie: Movie) => {
     alert('Music player coming soon!');
   };
 
@@ -183,7 +159,7 @@ export default function App() {
     if (!searchQuery) return [];
     return movies.filter(m => 
       m.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.genre.toLowerCase().includes(searchQuery.toLowerCase())
+      (m.genre || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
   };
 
@@ -405,9 +381,8 @@ export default function App() {
 
       {/* BOTTOM NAVIGATION */}
       <FourTabBottomNav
-        activeTab={activeBottomTab}
-        onTabChange={setActiveBottomTab}
-        downloadCount={downloads.length}
+        activeTab={activeBottomTab as any}
+        onTabChange={(tab: any) => setActiveBottomTab(tab)}
       />
 
       {/* MODALS */}
@@ -428,7 +403,7 @@ export default function App() {
       {showAuthModal && (
         <AuthModal
           onClose={() => setShowAuthModal(false)}
-          onSuccess={(user) => {
+          onAuthSuccess={(user) => {
             setCurrentUser(user);
             setShowAuthModal(false);
           }}

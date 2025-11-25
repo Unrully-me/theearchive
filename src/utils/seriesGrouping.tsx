@@ -2,6 +2,8 @@
  * Groups series episodes into single series cards
  * Returns movies and grouped series
  */
+import type { Movie, Episode } from '../types/movie';
+
 export function groupSeriesEpisodes(movies: Movie[]): Movie[] {
   const seriesGroups: { [key: string]: Movie[] } = {};
   const standaloneContent: Movie[] = [];

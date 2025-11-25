@@ -1,17 +1,8 @@
-import React from 'react';
+// React default import not required with new JSX transform
 import { ArrowLeft, Play, Trash2, Clock } from 'lucide-react';
+import type { Movie } from '../types/movie';
 
-interface Movie {
-  id: string;
-  title: string;
-  description: string;
-  videoUrl: string;
-  thumbnailUrl: string;
-  genre: string;
-  year: string;
-  type: string;
-  watchedAt?: string;
-}
+// using shared Movie type from src/types/movie
 
 interface WatchHistoryScreenProps {
   history: Movie[];

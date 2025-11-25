@@ -1,30 +1,12 @@
-import React from 'react';
 import { ArrowLeft, Play, Download, Star, Tv } from 'lucide-react';
-import { groupSeriesEpisodes } from '../utils/seriesGrouping';
-
-interface Movie {
-  id: string;
-  title: string;
-  description: string;
-  videoUrl: string;
-  thumbnailUrl: string;
-  genre: string;
-  year: string;
-  type: string;
-  fileSize?: string;
-  category?: 'movie' | 'series' | 'music';
-  ageRating?: 'G' | 'PG' | 'PG-13' | 'R' | '18+' | 'Kids';
-  section?: string;
-  uploadedAt?: string;
-  episodes?: any[];
-}
+import type { Movie } from '../types/movie';
 
 interface ViewAllScreenProps {
   title: string;
   emoji?: string;
   movies: Movie[];
   onWatch: (movie: Movie) => void;
-  onDownload: (movie: Movie) => void;
+  onDownload: (movie: Movie, type?: 'audio' | 'video') => void;
   onSeriesClick?: (movie: Movie) => void;
   onBack: () => void;
 }
@@ -63,6 +45,7 @@ export function ViewAllScreen({
             <ArrowLeft className="w-5 h-5 text-white" />
           </button>
           <h1 className="text-xl font-black text-white flex items-center gap-2">
+            {emoji && <span className="text-2xl mr-2">{emoji}</span>}
             {title}
           </h1>
         </div>
@@ -128,7 +111,7 @@ export function ViewAllScreen({
                     {movie.type === 'series' ? 'Watch Series' : 'Watch'}
                   </button>
                   <button
-                    onClick={() => onDownload(movie)}
+                    onClick={() => onDownload(movie, 'video')}
                     className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-black text-sm py-2.5 rounded-lg hover:shadow-lg hover:shadow-cyan-500/50 transition-all"
                   >
                     <Download className="w-4 h-4" />

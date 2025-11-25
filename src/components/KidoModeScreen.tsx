@@ -1,32 +1,13 @@
-import React from 'react';
+// React default import not required with new JSX transform
 import { Baby, Star, Heart } from 'lucide-react';
 import { MovieCard } from './MovieCard';
 import { groupSeriesEpisodes } from '../utils/seriesGrouping';
-
-interface Movie {
-  id: string;
-  title: string;
-  description: string;
-  videoUrl: string;
-  thumbnailUrl: string;
-  genre: string;
-  year: string;
-  type: string;
-  fileSize?: string;
-  category?: 'movie' | 'series' | 'music';
-  ageRating?: 'G' | 'PG' | 'PG-13' | 'R' | '18+' | 'Kids';
-  section?: string;
-  uploadedAt?: string;
-  seriesTitle?: string;
-  seasonNumber?: number;
-  episodeNumber?: number;
-  episodes?: any[];
-}
+import type { Movie } from '../types/movie';
 
 interface KidoModeScreenProps {
   movies: Movie[];
   onWatch: (movie: Movie) => void;
-  onDownload: (movie: Movie) => void;
+  onDownload: (movie: Movie, type?: 'audio' | 'video') => void;
   onMusicClick: (movie: Movie) => void;
   onSeriesClick?: (movie: Movie) => void;
 }
@@ -115,10 +96,10 @@ export function KidoModeScreen({ movies, onWatch, onDownload, onMusicClick, onSe
               🎨 Animated Adventures
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {groupedKidsContent.filter(m => m.type === 'movie').map(movie => (
+              {groupedKidsContent.filter((m: Movie) => m.type === 'movie').map((movie: Movie) => (
                 <MovieCard
                   key={movie.id}
-                  movie={movie as any}
+                  movie={movie}
                   onWatch={onWatch}
                   onDownload={onDownload}
                   onMusicClick={onMusicClick}

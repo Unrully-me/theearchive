@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import type * as React from 'react';
 import { X, Maximize2, Minimize2, PictureInPicture, Play, Pause, Volume2, VolumeX, SkipForward, SkipBack } from 'lucide-react';
-import { Resizable } from 're-resizable';
+import Resizable from 're-resizable';
 
 interface MoviePlayerProps {
   movie: {
@@ -72,19 +73,58 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
   // Auto-resume playing after mode change if it was playing before
   useEffect(() => {
     if (shouldAutoPlay && videoRef.current) {
-      const playPromise = videoRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
+      // Try to play. If browser blocks autoplay, try muted-play fallback.
+      const tryPlay = async () => {
+        const v = videoRef.current!;
+        try {
+          // First try a regular play (user gesture may already allow it)
+          await v.play();
+          setShouldAutoPlay(false);
+          setIsMuted(v.muted ?? false);
+        } catch (err) {
+          // Autoplay prevented — try muting then play (browsers allow muted autoplay)
+          try {
+            v.muted = true;
+            setIsMuted(true);
+            await v.play();
             setShouldAutoPlay(false);
-          })
-          .catch(err => {
-            console.log('Auto-play prevented:', err);
+            setIsPlaying(true);
+          } catch (err2) {
+            // Still prevented — stop trying and let the user interact
+            console.warn('Auto-play prevented (even when muted):', err2);
             setShouldAutoPlay(false);
-          });
-      }
+          }
+        }
+      };
+
+      tryPlay();
     }
   }, [mode, shouldAutoPlay]);
+
+  // Attempt an autoplay on mount / when a new movie loads
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+
+    // If the player isn't already playing, attempt a muted autoplay.
+    const attemptAutoplay = async () => {
+      if (!v.paused) return; // already playing
+      try {
+        v.muted = true; // try muted-play first (allowed by most browsers)
+        setIsMuted(true);
+        await v.play();
+        setIsPlaying(true);
+        return;
+      } catch (err) {
+        // If muted autoplay fails, don't spam attempts — let user click to play
+        console.info('Autoplay attempt failed; user gesture required to play', err);
+      }
+    };
+
+    // give the browser a short moment to attach sources / fetch headers
+    const t = setTimeout(() => attemptAutoplay(), 200);
+    return () => clearTimeout(t);
+  }, [movie?.id]);
 
   // Restore saved time when video loads
   useEffect(() => {
@@ -108,7 +148,7 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
   };
 
   // Dragging handlers
-  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
+  const handleDragStart = (e: any) => {
     if (mode !== 'minimized') return;
     
     e.stopPropagation();
@@ -127,7 +167,7 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
   };
 
   useEffect(() => {
-    const handleMove = (e: MouseEvent | TouchEvent) => {
+    const handleMove = (e: any) => {
       if (!isDragging || mode !== 'minimized') return;
       
       const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
@@ -334,6 +374,8 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
             onClick={handlePlayPause}
             poster={movie.thumbnailUrl}
             autoPlay
+            muted={isMuted}
+            preload="metadata"
             playsInline
             onPlay={() => setIsPlaying(true)}
             onPause={() => setIsPlaying(false)}
@@ -465,6 +507,8 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
                     controls
                     poster={movie.thumbnailUrl}
                     playsInline
+                    muted={isMuted}
+                    preload="metadata"
                     onPlay={() => setIsPlaying(true)}
                     onPause={() => setIsPlaying(false)}
                     onTimeUpdate={handleTimeUpdate}
@@ -527,7 +571,7 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
       {mode === 'minimized' && position && (
         <Resizable
           size={{ width: playerSize.width, height: playerSize.height }}
-          onResizeStop={(e, direction, ref, d) => {
+          onResizeStop={(_e, _direction, _ref, d) => {
             setPlayerSize({
               width: playerSize.width + d.width,
               height: playerSize.height + d.height
@@ -573,6 +617,8 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
               className="block w-full h-full object-contain"
               poster={movie.thumbnailUrl}
               playsInline
+              muted={isMuted}
+              preload="metadata"
               controls
               onPlay={() => setIsPlaying(true)}
               onPause={() => setIsPlaying(false)}
@@ -587,7 +633,7 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
               <div className="flex items-center justify-between pointer-events-auto">
                 <p className="text-white text-xs font-bold truncate flex-1">{movie.title}</p>
                 <button
-                  onClick={(e) => {
+                  onClick={(e: React.MouseEvent) => {
                     e.stopPropagation();
                     onClose();
                   }}
@@ -601,7 +647,7 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
               <div className="flex items-center justify-between gap-2 pointer-events-auto">
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={(e) => {
+                    onClick={(e: React.MouseEvent) => {
                       e.stopPropagation();
                       handleSkipBackward();
                     }}
@@ -611,7 +657,7 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
                     <SkipBack className="w-3 h-3 sm:w-4 sm:h-4" />
                   </button>
                   <button
-                    onClick={(e) => {
+                    onClick={(e: React.MouseEvent) => {
                       e.stopPropagation();
                       handlePlayPause();
                     }}
@@ -620,7 +666,7 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
                     {isPlaying ? <Pause className="w-3 h-3 sm:w-4 sm:h-4" /> : <Play className="w-3 h-3 sm:w-4 sm:h-4" />}
                   </button>
                   <button
-                    onClick={(e) => {
+                    onClick={(e: React.MouseEvent) => {
                       e.stopPropagation();
                       handleSkipForward();
                     }}
@@ -632,7 +678,7 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
                 </div>
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={(e) => {
+                    onClick={(e: React.MouseEvent) => {
                       e.stopPropagation();
                       handleModeChange('mini');
                     }}
@@ -642,7 +688,7 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
                     <Minimize2 className="w-3 h-3 sm:w-4 sm:h-4" />
                   </button>
                   <button
-                    onClick={(e) => {
+                    onClick={(e: React.MouseEvent) => {
                       e.stopPropagation();
                       handleModeChange('theater');
                     }}

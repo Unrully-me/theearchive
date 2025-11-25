@@ -1,21 +1,7 @@
-// Minimal React type shims for environments without @types/react installed.
-// These definitions let TypeScript accept basic React patterns in a pinch.
-
-declare namespace JSX {
-  interface IntrinsicElements {
-    [elemName: string]: any;
-  }
-}
+// This file previously provided minimal shims for React types.
+// It has been deprecated because the project now uses real @types/react.
+// Keeping an empty module declaration so that other tooling doesn't break.
 
 declare module 'react' {
-  export type ChangeEvent<T = any> = any;
-  export type MouseEvent = any;
-  export type SyntheticEvent = any;
-  export type FC<P = any> = any;
-  export type ReactNode = any;
-  export const useState: any;
-  export const useEffect: any;
-  export const useRef: any;
-  export const useMemo: any;
-  export const useCallback: any;
+  // intentionally empty — rely on @types/react from node_modules
 }

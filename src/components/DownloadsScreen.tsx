@@ -1,15 +1,7 @@
-import React from 'react';
+// React global import not required with new JSX transform
+import type { DownloadedMovie } from '../types/movie';
 import { Download, Trash2, Play, Film, ArrowLeft } from 'lucide-react';
 
-interface DownloadedMovie {
-  id: string;
-  title: string;
-  thumbnailUrl: string;
-  year: string;
-  genre: string;
-  fileSize?: string;
-  downloadedAt: string;
-}
 
 interface DownloadsScreenProps {
   downloads: DownloadedMovie[];

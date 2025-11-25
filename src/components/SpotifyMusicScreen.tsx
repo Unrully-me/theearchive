@@ -1,22 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { Plus, Music, ListMusic, TrendingUp, Globe, Heart, Play, X } from 'lucide-react';
-import { MovieCard } from './MovieCard';
+// MovieCard not used here — removed to prevent unused import warnings
+import type { Movie } from '../types/movie';
 import { MuZIkiLogo } from './MuZIkiLogo';
 
-interface Movie {
-  id: string;
-  title: string;
-  description: string;
-  videoUrl: string;
-  thumbnailUrl: string;
-  genre: string;
-  year: string;
-  type: string;
-  category?: string;
-  artist?: string;
-  fileSize?: string;
-  duration?: string;
-}
 
 interface Playlist {
   id: string;
@@ -30,7 +17,7 @@ interface Playlist {
 interface SpotifyMusicScreenProps {
   movies: Movie[];
   onMusicClick: (movie: Movie) => void;
-  onDownload: (movie: Movie) => void;
+  onDownload: (movie: Movie, type?: 'audio' | 'video') => void;
   currentTrack: Movie | null;
   isPlaying: boolean;
   onBack?: () => void; // Optional back handler for desktop
@@ -39,11 +26,15 @@ interface SpotifyMusicScreenProps {
 export function SpotifyMusicScreen({ 
   movies, 
   onMusicClick, 
-  onDownload,
-  currentTrack,
-  isPlaying,
+  onDownload: _onDownload,
+  currentTrack: _currentTrack,
+  isPlaying: _isPlaying,
   onBack
 }: SpotifyMusicScreenProps) {
+  // intentionally-reference unused props to satisfy the linter/type-checker
+  void _onDownload;
+  void _currentTrack;
+  void _isPlaying;
   const [playlists, setPlaylists] = useState<Playlist[]>(() => {
     const saved = localStorage.getItem('music_playlists');
     return saved ? JSON.parse(saved) : [];

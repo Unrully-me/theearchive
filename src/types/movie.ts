@@ -20,6 +20,12 @@ export interface Movie {
   year?: string;
   type?: string;
   fileSize?: string;
+  // Optional episode/series-specific pieces sometimes present on movie objects
+  seasonNumber?: number;
+  episodeNumber?: number;
+  watchedAt?: string;
+  downloads?: number;
+  views?: number;
   category?: 'movie' | 'series' | 'music' | string;
   contentType?: 'music-video' | 'music-audio' | string;
   artist?: string;
@@ -27,6 +33,7 @@ export interface Movie {
   section?: string;
   uploadedAt?: string;
   episodes?: Episode[];
+  duration?: string | number;
   rating?: string;
   seriesTitle?: string;
 }

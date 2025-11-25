@@ -1,28 +1,7 @@
-import React, { useState } from 'react';
-import { X, Upload, Film, Tv, Music as MusicIcon, Loader, Plus, FileUp } from 'lucide-react';
+import { useState } from 'react';
+import type { Movie } from '../types/movie';
+import { X, Upload, Tv, Music as MusicIcon, Loader, Plus, FileUp } from 'lucide-react';
 
-interface Movie {
-  id: string;
-  title: string;
-  description: string;
-  videoUrl: string;
-  thumbnailUrl: string;
-  genre: string;
-  year: string;
-  type: string;
-  fileSize?: string;
-  category?: 'movie' | 'series' | 'music';
-  ageRating?: 'G' | 'PG' | 'PG-13' | 'R' | '18+' | 'Kids';
-  section?: string;
-  uploadedAt?: string;
-  // Series fields
-  seriesTitle?: string;
-  seasonNumber?: number;
-  episodeNumber?: number;
-  // Music fields
-  contentType?: 'music-video' | 'music-audio';
-  artist?: string;
-}
 
 interface ContentUploadModalProps {
   isOpen: boolean;

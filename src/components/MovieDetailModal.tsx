@@ -1,28 +1,12 @@
-import React from 'react';
+// React default import not needed with new JSX transform
 import { X, Play, Download, Star, Clock, Calendar, Film, Tv } from 'lucide-react';
-
-interface Movie {
-  id: string;
-  title: string;
-  description?: string;
-  thumbnailUrl?: string;
-  genre?: string;
-  year?: string;
-  type?: 'movie' | 'series' | 'documentary';
-  fileSize?: string;
-  ageRating?: string;
-  category?: string;
-  seriesTitle?: string;
-  seasonNumber?: number;
-  episodeNumber?: number;
-  uploadedAt?: string;
-}
+import type { Movie } from '../types/movie';
 
 interface MovieDetailModalProps {
   movie: Movie;
   onClose: () => void;
   onWatch: (movie: Movie) => void;
-  onDownload: (movie: Movie) => void;
+  onDownload: (movie: Movie, type?: 'audio' | 'video') => void;
 }
 
 export function MovieDetailModal({ movie, onClose, onWatch, onDownload }: MovieDetailModalProps) {
@@ -88,7 +72,7 @@ export function MovieDetailModal({ movie, onClose, onWatch, onDownload }: MovieD
               </button>
               
               <button
-                onClick={() => onDownload(movie)}
+                onClick={() => onDownload(movie, 'video')}
                 className="px-8 py-4 glass-card glass-card-hover rounded-2xl font-black text-white text-lg flex items-center gap-3"
               >
                 <Download className="w-6 h-6" strokeWidth={2.5} />
@@ -207,7 +191,7 @@ export function MovieDetailModal({ movie, onClose, onWatch, onDownload }: MovieD
             </button>
             
             <button
-              onClick={() => onDownload(movie)}
+              onClick={() => onDownload(movie, 'video')}
               className="flex-1 min-w-[200px] px-8 py-5 glass-card glass-card-hover rounded-2xl font-black text-white text-lg flex items-center justify-center gap-3"
             >
               <Download className="w-6 h-6" strokeWidth={2.5} />

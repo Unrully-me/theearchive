@@ -1,33 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Film, Edit, Trash2, Save, X, Search, Tv, Zap, Plus, Upload, FileUp, Loader, Music } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ArrowLeft, Edit, Trash2, Save, X, Search, Tv, Plus, Upload, Music } from 'lucide-react';
 import { projectId, publicAnonKey } from './utils/supabase/info';
 import { extractSeriesTitle, extractEpisodeInfo } from './utils/seriesGrouping';
 import { ContentUploadModal } from './components/ContentUploadModal';
+import type { Movie } from './types/movie';
 
 const API_URL = `https://${projectId}.supabase.co/functions/v1/make-server-4d451974`;
 
-interface Movie {
-  id: string;
-  title: string;
-  description: string;
-  videoUrl: string;
-  thumbnailUrl: string;
-  genre: string;
-  year: string;
-  type: string;
-  fileSize?: string;
-  category?: 'movie' | 'series' | 'music';
-  ageRating?: 'G' | 'PG' | 'PG-13' | 'R' | '18+' | 'Kids';
-  section?: string;
-  uploadedAt?: string;
-  // Series fields
-  seriesTitle?: string;
-  seasonNumber?: number;
-  episodeNumber?: number;
-  // Music fields
-  contentType?: 'music-video' | 'music-audio';
-  artist?: string;
-}
+// using shared Movie type from src/types/movie
 
 interface MovieAdminPortalProps {
   skipAuth?: boolean;
@@ -67,6 +47,9 @@ export default function MovieAdminPortal({ skipAuth = false, onNavigateBack }: M
     ageRating: 'PG',
     section: 'Movies',
   });
+
+  // Intentionally reference states which are planned but not used yet to avoid 'unused' diagnostics
+  void uploadMode; void setUploadMode; void isUploading; void setIsUploading; void uploadProgress; void setUploadProgress; void newContent; void setNewContent;
   
   // Debug: Component mounted
   console.log('🎬 MovieAdminPortal MOUNTED - Component is rendering!');
@@ -401,7 +384,7 @@ export default function MovieAdminPortal({ skipAuth = false, onNavigateBack }: M
 
   const filteredMovies = movies.filter(movie => {
     const matchesSearch = movie.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         movie.description.toLowerCase().includes(searchQuery.toLowerCase());
+                         (movie.description || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter = filterType === 'all' || movie.type === filterType;
     return matchesSearch && matchesFilter;
   });
