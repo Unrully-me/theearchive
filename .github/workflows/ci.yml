@@ -38,6 +38,8 @@ jobs:
       - name: Deploy Supabase function(s)
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        # functions are stored under src/supabase/functions in this repo
+        working-directory: src
         run: |
-          # deploy server functions in supabase/functions/server (adjust name/path as needed)
+          # deploy server functions in src/supabase/functions/server
           supabase functions deploy server --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --token $SUPABASE_ACCESS_TOKEN
