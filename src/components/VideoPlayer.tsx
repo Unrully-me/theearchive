@@ -21,7 +21,8 @@ export function VideoPlayer({ videoUrl, title, description, year, genre, onClose
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [isPiP, setIsPiP] = useState(false);
-  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // use ReturnType<typeof setTimeout> for browser setTimeout which returns number
+  const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Play/Pause toggle
   const togglePlay = () => {
@@ -203,7 +204,7 @@ export function VideoPlayer({ videoUrl, title, description, year, genre, onClose
   const resetControlsTimeout = () => {
     setShowControls(true);
     if (controlsTimeoutRef.current) {
-      clearTimeout(controlsTimeoutRef.current);
+      clearTimeout(controlsTimeoutRef.current as unknown as number);
     }
     if (isPlaying) {
       controlsTimeoutRef.current = setTimeout(() => {
@@ -216,7 +217,7 @@ export function VideoPlayer({ videoUrl, title, description, year, genre, onClose
     resetControlsTimeout();
     return () => {
       if (controlsTimeoutRef.current) {
-        clearTimeout(controlsTimeoutRef.current);
+        clearTimeout(controlsTimeoutRef.current as unknown as number);
       }
     };
   }, [isPlaying]);
