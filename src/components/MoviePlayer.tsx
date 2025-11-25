@@ -35,9 +35,10 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
   const [showSkipIndicator, setShowSkipIndicator] = useState<'forward' | 'backward' | null>(null);
   
   const videoRef = useRef<HTMLVideoElement>(null);
-  const hideTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // use ReturnType<typeof setTimeout> because in browsers setTimeout returns a number
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const skipIndicatorTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const skipIndicatorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load saved position from localStorage
   useEffect(() => {
@@ -148,14 +149,20 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
   };
 
   // Dragging handlers
-  const handleDragStart = (e: any) => {
+  const handleDragStart = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement> | MouseEvent | TouchEvent) => {
     if (mode !== 'minimized') return;
     
     e.stopPropagation();
     setIsDragging(true);
     
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    // Support both React synthetic and native mouse/touch events
+    const clientX = ('touches' in (e as TouchEvent) && (e as TouchEvent).touches && (e as TouchEvent).touches.length)
+      ? (e as TouchEvent).touches[0].clientX
+      : ('clientX' in (e as MouseEvent) ? (e as MouseEvent).clientX : 0);
+
+    const clientY = ('touches' in (e as TouchEvent) && (e as TouchEvent).touches && (e as TouchEvent).touches.length)
+      ? (e as TouchEvent).touches[0].clientY
+      : ('clientY' in (e as MouseEvent) ? (e as MouseEvent).clientY : 0);
     const rect = containerRef.current?.getBoundingClientRect();
     
     if (rect) {
@@ -167,11 +174,16 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
   };
 
   useEffect(() => {
-    const handleMove = (e: any) => {
+    const handleMove = (e: MouseEvent | TouchEvent | React.MouseEvent | React.TouchEvent) => {
       if (!isDragging || mode !== 'minimized') return;
       
-      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      const clientX = ('touches' in (e as TouchEvent) && (e as TouchEvent).touches && (e as TouchEvent).touches.length)
+        ? (e as TouchEvent).touches[0].clientX
+        : ('clientX' in (e as MouseEvent) ? (e as MouseEvent).clientX : 0);
+
+      const clientY = ('touches' in (e as TouchEvent) && (e as TouchEvent).touches && (e as TouchEvent).touches.length)
+        ? (e as TouchEvent).touches[0].clientY
+        : ('clientY' in (e as MouseEvent) ? (e as MouseEvent).clientY : 0);
       
       const newX = clientX - dragOffset.x;
       const newY = clientY - dragOffset.y;
@@ -191,10 +203,10 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
     };
 
     if (isDragging) {
-      document.addEventListener('mousemove', handleMove);
-      document.addEventListener('mouseup', handleEnd);
-      document.addEventListener('touchmove', handleMove);
-      document.addEventListener('touchend', handleEnd);
+          document.addEventListener('mousemove', handleMove as EventListener);
+          document.addEventListener('mouseup', handleEnd);
+          document.addEventListener('touchmove', handleMove as EventListener);
+          document.addEventListener('touchend', handleEnd);
     }
 
     return () => {
@@ -216,6 +228,20 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
       document.body.style.overflow = 'unset';
     };
   }, [movie, mode]);
+
+  // Clear any timers on unmount to avoid leaks
+  useEffect(() => {
+    return () => {
+      if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current as unknown as number);
+        hideTimerRef.current = null;
+      }
+      if (skipIndicatorTimerRef.current) {
+        clearTimeout(skipIndicatorTimerRef.current as unknown as number);
+        skipIndicatorTimerRef.current = null;
+      }
+    };
+  }, []);
 
   // Auto-hide controls in theater mode
   const resetHideTimer = () => {
@@ -572,10 +598,11 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
         <Resizable
           size={{ width: playerSize.width, height: playerSize.height }}
           onResizeStop={(_e, _direction, _ref, d) => {
-            setPlayerSize({
-              width: playerSize.width + d.width,
-              height: playerSize.height + d.height
-            });
+            // use functional update to ensure we don't read stale playerSize
+            setPlayerSize(prev => ({
+              width: prev.width + d.width,
+              height: prev.height + d.height
+            }));
           }}
           minWidth={150}
           minHeight={150}
