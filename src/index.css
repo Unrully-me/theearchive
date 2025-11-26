@@ -6540,7 +6540,8 @@
 
 .shimmer {
   background: linear-gradient(90deg, #fff0 0%, #ffffff1a 50%, #fff0 100%);
-  background-size: 1000px 100%animation: shimmer 2s infinite;
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
 }
 
 .modern-button {
