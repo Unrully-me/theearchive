@@ -110,7 +110,7 @@ export function SeriesDetailScreen({
                 onClick={() => setSelectedSeason(seasonNum)}
                 className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all ${
                   selectedSeason === seasonNum
-                    ? 'bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black'
+                    ? 'bg-gradient-to-r from-purple-600 to-cyan-600 text-white shadow-lg shadow-purple-500/50'
                     : 'bg-white/5 text-gray-300 hover:bg-white/10'
                 }`}
               >
@@ -185,7 +185,7 @@ export function SeriesDetailScreen({
                   <div className="flex gap-2 mt-2">
                     <button
                       onClick={() => onPlayEpisode(episode)}
-                      className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black font-black text-sm py-2 rounded-lg hover:shadow-lg hover:shadow-[#FFD700]/50 transition-all"
+                      className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-cyan-600 text-white font-black text-sm py-2 rounded-lg hover:shadow-lg hover:shadow-cyan-500/50 transition-all"
                     >
                       <Play className="w-4 h-4" />
                       Play

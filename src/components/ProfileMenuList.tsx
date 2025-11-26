@@ -14,7 +14,8 @@ import {
   ChevronRight,
   LogOut,
   Download,
-  Eye
+  Eye,
+  Globe
 } from 'lucide-react';
 
 interface MenuItem {
@@ -36,6 +37,7 @@ interface ProfileMenuListProps {
   downloadCount?: number;
   onViewWatchHistory?: () => void;
   onViewDownloads?: () => void;
+  onBrowseAllCategories?: () => void;
 }
 
 export function ProfileMenuList({ 
@@ -46,7 +48,8 @@ export function ProfileMenuList({
   watchHistoryCount = 0,
   downloadCount = 0,
   onViewWatchHistory,
-  onViewDownloads
+  onViewDownloads,
+  onBrowseAllCategories
 }: ProfileMenuListProps) {
   const menuItems: MenuItem[] = [
     {
@@ -56,6 +59,13 @@ export function ProfileMenuList({
       color: '#FFD700',
       action: () => alert('Premium feature coming soon!'),
       special: true
+    },
+    {
+      icon: Globe,
+      label: 'Browse All Categories',
+      subtitle: 'Explore our complete entertainment library',
+      color: '#8B5CF6',
+      action: () => onBrowseAllCategories ? onBrowseAllCategories() : alert('Browse Categories')
     },
     {
       icon: Eye,
@@ -82,7 +92,7 @@ export function ProfileMenuList({
       icon: List,
       label: 'My List',
       badge: 0,
-      color: '#FFA500',
+      color: '#8B5CF6',
       action: () => alert('My List feature coming soon!')
     },
     {
@@ -140,8 +150,8 @@ export function ProfileMenuList({
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#FFD700] to-[#FFA500] flex items-center justify-center shadow-2xl">
-              <span className="text-black font-black text-2xl">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-600 to-cyan-600 flex items-center justify-center shadow-2xl shadow-purple-500/50">
+              <span className="text-white font-black text-2xl">
                 {userName.charAt(0).toUpperCase()}
               </span>
             </div>
@@ -171,7 +181,7 @@ export function ProfileMenuList({
               onClick={item.action}
               className={`w-full rounded-xl p-4 transition-all flex items-center justify-between group ${
                 item.special
-                  ? 'bg-gradient-to-r from-[#FFD700]/20 to-[#FFA500]/20 border border-[#FFD700]/30 hover:border-[#FFD700]/50'
+                  ? 'bg-gradient-to-r from-purple-600/20 to-cyan-600/20 border border-purple-500/30 hover:border-purple-500/50'
                   : 'bg-gray-800/50 hover:bg-gray-800'
               }`}
             >

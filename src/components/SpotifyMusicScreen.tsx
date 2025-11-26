@@ -1,9 +1,22 @@
-import { useState } from 'react';
-import { Plus, Music, ListMusic, TrendingUp, Globe, Heart, Play, X } from 'lucide-react';
-// MovieCard not used here — removed to prevent unused import warnings
-import type { Movie } from '../types/movie';
+import React, { useState, useRef, useEffect } from 'react';
+import { Plus, Music, ListMusic, TrendingUp, Globe, Heart, Play, X, ArrowLeft, Sparkles, Flame, Star } from 'lucide-react';
+import { MovieCard } from './MovieCard';
 import { MuZIkiLogo } from './MuZIkiLogo';
 
+interface Movie {
+  id: string;
+  title: string;
+  description: string;
+  videoUrl: string;
+  thumbnailUrl: string;
+  genre: string;
+  year: string;
+  type: string;
+  category?: string;
+  artist?: string;
+  fileSize?: string;
+  duration?: string;
+}
 
 interface Playlist {
   id: string;
@@ -17,24 +30,20 @@ interface Playlist {
 interface SpotifyMusicScreenProps {
   movies: Movie[];
   onMusicClick: (movie: Movie) => void;
-  onDownload: (movie: Movie, type?: 'audio' | 'video') => void;
+  onDownload: (movie: Movie) => void;
   currentTrack: Movie | null;
   isPlaying: boolean;
-  onBack?: () => void; // Optional back handler for desktop
+  onBack?: () => void;
 }
 
 export function SpotifyMusicScreen({ 
   movies, 
   onMusicClick, 
-  onDownload: _onDownload,
-  currentTrack: _currentTrack,
-  isPlaying: _isPlaying,
+  onDownload,
+  currentTrack,
+  isPlaying,
   onBack
 }: SpotifyMusicScreenProps) {
-  // intentionally-reference unused props to satisfy the linter/type-checker
-  void _onDownload;
-  void _currentTrack;
-  void _isPlaying;
   const [playlists, setPlaylists] = useState<Playlist[]>(() => {
     const saved = localStorage.getItem('music_playlists');
     return saved ? JSON.parse(saved) : [];
@@ -105,7 +114,6 @@ export function SpotifyMusicScreen({
     const playlist = playlists.find(p => p.id === playlistId);
     if (!playlist) return;
 
-    // Check if song already exists
     if (playlist.songs.some(s => s.id === selectedSong.id)) {
       alert('This song is already in the playlist!');
       return;
@@ -166,26 +174,35 @@ export function SpotifyMusicScreen({
 
   if (viewMode === 'playlist' && selectedPlaylist) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-900 via-black to-black pb-24">
-        {/* Playlist Header */}
-        <div className="relative h-64 bg-gradient-to-b from-purple-600/30 to-black">
+      <div className="min-h-screen bg-gradient-to-b from-purple-950 via-black to-black pb-24">
+        {/* Playlist Header with Glassmorphism */}
+        <div className="relative h-72 bg-gradient-to-b from-purple-600/40 via-cyan-600/20 to-black overflow-hidden">
+          {/* Animated background */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(168,85,247,0.15),transparent_50%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(6,182,212,0.15),transparent_50%)]" />
+          
           <button
             onClick={() => setViewMode('home')}
-            className="absolute top-4 left-4 w-10 h-10 bg-black/50 backdrop-blur-xl rounded-full flex items-center justify-center z-10"
+            className="absolute top-6 left-6 w-12 h-12 bg-black/40 backdrop-blur-2xl rounded-full flex items-center justify-center z-10 border border-white/10 hover:bg-white/20 hover:border-cyan-400/50 transition-all group"
           >
-            <span className="text-white text-xl">←</span>
+            <ArrowLeft className="w-5 h-5 text-white group-hover:text-cyan-400 transition-colors" />
           </button>
 
-          <div className="absolute bottom-0 left-0 right-0 p-6">
+          <div className="absolute bottom-0 left-0 right-0 p-6 backdrop-blur-xl bg-black/30">
             <div className="flex items-end gap-4">
-              <div className="w-32 h-32 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-2xl">
-                <ListMusic className="w-16 h-16 text-white" />
+              <div className="w-36 h-36 bg-gradient-to-br from-purple-500 via-orange-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-2xl shadow-purple-500/50 relative overflow-hidden">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.3),transparent_70%)]" />
+                <ListMusic className="w-16 h-16 text-white relative z-10" />
               </div>
-              <div className="flex-1">
-                <p className="text-xs font-bold text-gray-400 mb-1">PLAYLIST</p>
-                <h1 className="text-3xl font-black text-white mb-2">{selectedPlaylist.name}</h1>
-                <p className="text-sm text-gray-400">{selectedPlaylist.description}</p>
-                <p className="text-xs text-gray-500 mt-2">{selectedPlaylist.songs.length} songs</p>
+              <div className="flex-1 pb-2">
+                <p className="text-xs font-black text-cyan-400 mb-1 tracking-wider">PLAYLIST</p>
+                <h1 className="text-4xl font-black text-white mb-2 leading-tight">{selectedPlaylist.name}</h1>
+                <p className="text-sm text-gray-300">{selectedPlaylist.description}</p>
+                <div className="flex items-center gap-3 mt-3">
+                  <p className="text-xs text-gray-400">{selectedPlaylist.songs.length} songs</p>
+                  <div className="w-1 h-1 rounded-full bg-gray-600" />
+                  <p className="text-xs text-gray-400">Created {new Date(selectedPlaylist.createdAt).toLocaleDateString()}</p>
+                </div>
               </div>
             </div>
           </div>
@@ -193,13 +210,14 @@ export function SpotifyMusicScreen({
 
         {/* Play All Button */}
         {selectedPlaylist.songs.length > 0 && (
-          <div className="px-6 py-4">
+          <div className="px-6 py-6">
             <button
               onClick={() => onMusicClick(selectedPlaylist.songs[0])}
-              className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl font-black text-white text-lg flex items-center justify-center gap-3 hover:shadow-2xl hover:shadow-green-500/50 transition-all"
+              className="w-full py-5 bg-gradient-to-r from-purple-600 via-orange-500 to-pink-500 rounded-2xl font-black text-white text-lg flex items-center justify-center gap-3 hover:shadow-2xl hover:shadow-orange-500/60 transition-all hover:scale-[1.02] group relative overflow-hidden"
             >
-              <Play className="w-6 h-6 fill-white" />
-              PLAY ALL
+              <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/0 via-white/20 to-cyan-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+              <Play className="w-6 h-6 fill-white relative z-10" />
+              <span className="relative z-10">PLAY ALL</span>
             </button>
           </div>
         )}
@@ -207,12 +225,15 @@ export function SpotifyMusicScreen({
         {/* Songs List */}
         <div className="px-4">
           {selectedPlaylist.songs.length === 0 ? (
-            <div className="text-center py-12">
-              <Music className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-              <p className="text-gray-400 text-lg">No songs in this playlist yet</p>
+            <div className="text-center py-16 px-6">
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-600/20 to-cyan-600/20 backdrop-blur-xl border border-purple-500/30 flex items-center justify-center mx-auto mb-6">
+                <Music className="w-12 h-12 text-purple-400" />
+              </div>
+              <h3 className="text-2xl font-black text-white mb-2">Empty Playlist</h3>
+              <p className="text-gray-400 text-base mb-6">Add some tracks to get started!</p>
               <button
                 onClick={() => setViewMode('home')}
-                className="mt-4 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl"
+                className="px-8 py-4 bg-gradient-to-r from-purple-600 to-cyan-600 text-white font-black rounded-xl hover:shadow-2xl hover:shadow-purple-500/50 transition-all"
               >
                 Browse Music
               </button>
@@ -222,36 +243,52 @@ export function SpotifyMusicScreen({
               {selectedPlaylist.songs.map((song, index) => (
                 <div
                   key={song.id}
-                  className="flex items-center gap-3 p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-all group"
+                  className="flex items-center gap-4 p-4 bg-white/5 hover:bg-gradient-to-r hover:from-purple-600/10 hover:to-cyan-600/10 rounded-xl transition-all group border border-transparent hover:border-purple-500/30 backdrop-blur-xl"
                 >
                   {/* Track Number */}
-                  <div className="w-8 text-center">
-                    <span className="text-gray-400 group-hover:hidden">{index + 1}</span>
+                  <div className="w-10 text-center">
+                    <span className="text-gray-400 group-hover:hidden font-bold">{index + 1}</span>
                     <button
                       onClick={() => onMusicClick(song)}
-                      className="hidden group-hover:inline text-white"
+                      className="hidden group-hover:inline w-8 h-8 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 flex items-center justify-center"
                     >
-                      ▶
+                      <Play className="w-4 h-4 text-white fill-white ml-0.5" />
                     </button>
                   </div>
 
                   {/* Thumbnail */}
-                  <img
-                    src={song.thumbnailUrl}
-                    alt={song.title}
-                    className="w-12 h-12 rounded-lg object-cover"
-                  />
+                  <div className="relative">
+                    <img
+                      src={song.thumbnailUrl}
+                      alt={song.title}
+                      className="w-14 h-14 rounded-lg object-cover shadow-lg"
+                    />
+                    {currentTrack?.id === song.id && (
+                      <div className="absolute inset-0 bg-gradient-to-br from-purple-500/50 to-orange-500/50 rounded-lg flex items-center justify-center backdrop-blur-sm">
+                        <div className="w-8 h-8 border-2 border-white rounded-full flex items-center justify-center animate-pulse">
+                          <div className="w-0 h-0 border-l-[6px] border-l-white border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent ml-1" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Song Info */}
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-white truncate">{song.title}</p>
+                    <p className={`font-black truncate ${currentTrack?.id === song.id ? 'text-orange-400' : 'text-white'}`}>
+                      {song.title}
+                    </p>
                     <p className="text-sm text-gray-400 truncate">{song.artist || song.genre}</p>
                   </div>
 
-                  {/* Actions */}
+                  {/* Duration */}
+                  {song.duration && (
+                    <p className="text-sm text-gray-500 hidden md:block">{song.duration}</p>
+                  )}
+
+                  {/* Remove Button */}
                   <button
                     onClick={() => handleRemoveFromPlaylist(selectedPlaylist.id, song.id)}
-                    className="opacity-0 group-hover:opacity-100 w-8 h-8 flex items-center justify-center text-red-400 hover:text-red-300 transition-all"
+                    className="opacity-0 group-hover:opacity-100 w-10 h-10 flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-all"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -262,10 +299,10 @@ export function SpotifyMusicScreen({
         </div>
 
         {/* Delete Playlist */}
-        <div className="px-6 py-6">
+        <div className="px-6 py-8">
           <button
             onClick={() => handleDeletePlaylist(selectedPlaylist.id)}
-            className="w-full py-3 border border-red-500/30 text-red-400 font-bold rounded-xl hover:bg-red-500/10 transition-all"
+            className="w-full py-4 border-2 border-red-500/30 text-red-400 font-black rounded-xl hover:bg-red-500/10 hover:border-red-500/50 transition-all backdrop-blur-xl"
           >
             Delete Playlist
           </button>
@@ -275,63 +312,97 @@ export function SpotifyMusicScreen({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-black to-black pb-24">
-      {/* Header */}
-      <div className="sticky top-0 z-40 bg-black/95 backdrop-blur-xl border-b border-green-500/20">
-        <div className="px-4 py-4">
-          <div className="flex items-center gap-3">
-            {/* Back Button - Only show on desktop when onBack is provided */}
-            {onBack && (
-              <button
-                onClick={onBack}
-                className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-all md:flex hidden"
-              >
-                <span className="text-white text-xl">←</span>
-              </button>
-            )}
-            <MuZIkiLogo className="w-10 h-10" isActive={true} />
-            <h1 className="text-2xl font-black bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
-              muZIki
-            </h1>
+    <div className="min-h-screen bg-gradient-to-b from-purple-950 via-black to-black pb-24 relative overflow-hidden">
+      {/* Animated Background Elements */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-orange-600/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+      </div>
+
+      {/* Header - Glassmorphism Design */}
+      <div className="sticky top-0 z-40 backdrop-blur-2xl bg-black/60 border-b border-purple-500/20 shadow-lg shadow-purple-900/10">
+        <div className="px-6 py-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              {/* Back Button - Desktop Only */}
+              {onBack && (
+                <button
+                  onClick={onBack}
+                  className="hidden md:flex w-12 h-12 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-cyan-400/50 rounded-full items-center justify-center transition-all group backdrop-blur-xl"
+                >
+                  <ArrowLeft className="w-5 h-5 text-white group-hover:text-cyan-400 transition-colors" />
+                </button>
+              )}
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <MuZIkiLogo className="w-12 h-12" isActive={true} />
+                  <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-cyan-600 rounded-full opacity-20 blur-xl" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-black bg-gradient-to-r from-purple-400 via-orange-400 to-cyan-400 bg-clip-text text-transparent">
+                    muZIki
+                  </h1>
+                  <p className="text-xs text-gray-400 font-bold">{allMusic.length} tracks in library</p>
+                </div>
+              </div>
+            </div>
           </div>
-          <p className="text-xs text-gray-400 mt-1">{allMusic.length} tracks available</p>
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="px-4 py-6 grid grid-cols-2 gap-3">
-        <button
-          onClick={() => setShowCreatePlaylist(true)}
-          className="bg-gradient-to-br from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-2xl p-4 text-left hover:border-purple-500/50 transition-all"
-        >
-          <Plus className="w-8 h-8 text-purple-400 mb-2" />
-          <h3 className="font-black text-white">Create Playlist</h3>
-        </button>
+      {/* Quick Actions - Modern Cards */}
+      <div className="px-6 py-8 relative z-10">
+        <div className="grid grid-cols-2 gap-4">
+          <button
+            onClick={() => setShowCreatePlaylist(true)}
+            className="group relative bg-gradient-to-br from-purple-600/20 via-purple-600/10 to-transparent border border-purple-500/30 rounded-2xl p-6 text-left hover:border-purple-500/60 transition-all backdrop-blur-xl overflow-hidden hover:scale-[1.02]"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-600/0 to-purple-600/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="relative z-10">
+              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-600 to-purple-400 flex items-center justify-center mb-4 shadow-lg shadow-purple-500/50 group-hover:scale-110 transition-transform">
+                <Plus className="w-7 h-7 text-white" />
+              </div>
+              <h3 className="font-black text-white text-lg mb-1">Create Playlist</h3>
+              <p className="text-xs text-gray-400">Make your own mix</p>
+            </div>
+          </button>
 
-        <button
-          onClick={() => alert('Liked Songs feature coming soon!')}
-          className="bg-gradient-to-br from-pink-600/20 to-red-600/20 border border-pink-500/30 rounded-2xl p-4 text-left hover:border-pink-500/50 transition-all"
-        >
-          <Heart className="w-8 h-8 text-pink-400 mb-2" />
-          <h3 className="font-black text-white">Liked Songs</h3>
-        </button>
+          <button
+            onClick={() => alert('Liked Songs feature coming soon!')}
+            className="group relative bg-gradient-to-br from-pink-600/20 via-orange-600/10 to-transparent border border-pink-500/30 rounded-2xl p-6 text-left hover:border-pink-500/60 transition-all backdrop-blur-xl overflow-hidden hover:scale-[1.02]"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-pink-600/0 to-pink-600/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="relative z-10">
+              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-pink-600 via-orange-500 to-pink-400 flex items-center justify-center mb-4 shadow-lg shadow-pink-500/50 group-hover:scale-110 transition-transform">
+                <Heart className="w-7 h-7 text-white" />
+              </div>
+              <h3 className="font-black text-white text-lg mb-1">Liked Songs</h3>
+              <p className="text-xs text-gray-400">Your favorites</p>
+            </div>
+          </button>
+        </div>
       </div>
 
       {/* Your Playlists */}
       {playlists.length > 0 && (
-        <div className="px-4 py-4">
-          <h2 className="text-xl font-black text-white mb-4">Your Playlists</h2>
-          <div className="grid grid-cols-2 gap-3">
+        <div className="px-6 py-6 relative z-10">
+          <div className="flex items-center gap-2 mb-6">
+            <Sparkles className="w-5 h-5 text-purple-400" />
+            <h2 className="text-2xl font-black text-white">Your Playlists</h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {playlists.map(playlist => (
               <button
                 key={playlist.id}
                 onClick={() => viewPlaylist(playlist)}
-                className="bg-white/5 hover:bg-white/10 rounded-xl p-4 text-left transition-all group"
+                className="group bg-white/5 hover:bg-white/10 rounded-xl p-4 text-left transition-all border border-white/10 hover:border-purple-500/50 backdrop-blur-xl"
               >
-                <div className="w-full aspect-square bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg mb-3 flex items-center justify-center">
-                  <ListMusic className="w-12 h-12 text-white" />
+                <div className="w-full aspect-square bg-gradient-to-br from-purple-600 via-orange-500 to-pink-500 rounded-lg mb-4 flex items-center justify-center relative overflow-hidden shadow-lg group-hover:shadow-2xl group-hover:shadow-purple-500/50 transition-all">
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.2),transparent_70%)]" />
+                  <ListMusic className="w-12 h-12 text-white relative z-10" />
                 </div>
-                <h3 className="font-bold text-white truncate">{playlist.name}</h3>
+                <h3 className="font-black text-white truncate group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:to-cyan-400 group-hover:bg-clip-text transition-all">{playlist.name}</h3>
                 <p className="text-xs text-gray-400 mt-1">{playlist.songs.length} songs</p>
               </button>
             ))}
@@ -339,37 +410,56 @@ export function SpotifyMusicScreen({
         </div>
       )}
 
-      {/* Trending Music */}
+      {/* Trending Music - Hero Section */}
       {trendingMusic.length > 0 && (
-        <div className="px-4 py-4">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="w-5 h-5 text-green-400" />
-            <h2 className="text-xl font-black text-white">Trending Now</h2>
+        <div className="px-6 py-6 relative z-10">
+          <div className="flex items-center gap-2 mb-6">
+            <Flame className="w-6 h-6 text-orange-500" />
+            <h2 className="text-2xl font-black text-white">Trending Now</h2>
+            <div className="ml-auto px-3 py-1 rounded-full bg-gradient-to-r from-orange-500/20 to-pink-500/20 border border-orange-500/30 backdrop-blur-xl">
+              <span className="text-xs font-black text-orange-400">HOT</span>
+            </div>
           </div>
-          <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide">
+          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
             {trendingMusic.slice(0, 10).map(song => (
-              <div key={song.id} className="min-w-[160px]">
+              <div key={song.id} className="min-w-[180px] snap-start">
                 <div className="relative group">
                   <img
                     src={song.thumbnailUrl}
                     alt={song.title}
-                    className="w-40 h-40 rounded-xl object-cover"
+                    className="w-full aspect-square rounded-2xl object-cover shadow-xl"
                   />
+                  {/* Gradient Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60 rounded-2xl" />
+                  
+                  {/* Play Button */}
                   <button
                     onClick={() => onMusicClick(song)}
-                    className="absolute bottom-2 right-2 w-12 h-12 bg-green-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all shadow-2xl"
+                    className="absolute bottom-3 right-3 w-14 h-14 bg-gradient-to-r from-orange-500 to-pink-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all shadow-2xl shadow-orange-500/50 hover:scale-110"
                   >
-                    <Play className="w-5 h-5 text-white fill-white ml-1" />
+                    <Play className="w-6 h-6 text-white fill-white ml-1" />
                   </button>
+                  
+                  {/* Add to Playlist */}
                   <button
                     onClick={() => openAddToPlaylistModal(song)}
-                    className="absolute top-2 right-2 w-8 h-8 bg-black/50 backdrop-blur-xl rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                    className="absolute top-3 right-3 w-10 h-10 bg-black/50 backdrop-blur-xl rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all border border-white/20 hover:bg-white/20"
                   >
-                    <Plus className="w-4 h-4 text-white" />
+                    <Plus className="w-5 h-5 text-white" />
                   </button>
+
+                  {/* Now Playing Indicator */}
+                  {currentTrack?.id === song.id && (
+                    <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-gradient-to-r from-purple-600 to-orange-500 backdrop-blur-xl flex items-center gap-2 animate-pulse">
+                      <div className="w-2 h-2 bg-white rounded-full" />
+                      <span className="text-xs font-black text-white">Playing</span>
+                    </div>
+                  )}
                 </div>
-                <p className="font-bold text-white text-sm mt-2 truncate">{song.title}</p>
-                <p className="text-xs text-gray-400 truncate">{song.artist || song.genre}</p>
+                <div className="mt-3">
+                  <p className="font-black text-white text-sm truncate">{song.title}</p>
+                  <p className="text-xs text-gray-400 truncate mt-1">{song.artist || song.genre}</p>
+                </div>
               </div>
             ))}
           </div>
@@ -378,36 +468,14 @@ export function SpotifyMusicScreen({
 
       {/* Uganda Music */}
       {ugandaMusic.length > 0 && (
-        <div className="px-4 py-4">
-          <div className="flex items-center gap-2 mb-4">
-            <Globe className="w-5 h-5 text-yellow-400" />
-            <h2 className="text-xl font-black text-white">Uganda Music 🇺🇬</h2>
+        <div className="px-6 py-6 relative z-10">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="text-2xl">🇺🇬</div>
+            <h2 className="text-2xl font-black text-white">Uganda Vibes</h2>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {ugandaMusic.slice(0, 10).map(song => (
-              <div key={song.id} className="group">
-                <div className="relative">
-                  <img
-                    src={song.thumbnailUrl}
-                    alt={song.title}
-                    className="w-full aspect-square rounded-xl object-cover"
-                  />
-                  <button
-                    onClick={() => onMusicClick(song)}
-                    className="absolute bottom-2 right-2 w-12 h-12 bg-green-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all shadow-2xl"
-                  >
-                    <Play className="w-5 h-5 text-white fill-white ml-1" />
-                  </button>
-                  <button
-                    onClick={() => openAddToPlaylistModal(song)}
-                    className="absolute top-2 right-2 w-8 h-8 bg-black/50 backdrop-blur-xl rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
-                  >
-                    <Plus className="w-4 h-4 text-white" />
-                  </button>
-                </div>
-                <p className="font-bold text-white text-sm mt-2 truncate">{song.title}</p>
-                <p className="text-xs text-gray-400 truncate">{song.artist || song.genre}</p>
-              </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {ugandaMusic.slice(0, 12).map(song => (
+              <MusicCard key={song.id} song={song} onMusicClick={onMusicClick} openAddToPlaylistModal={openAddToPlaylistModal} currentTrack={currentTrack} />
             ))}
           </div>
         </div>
@@ -415,33 +483,14 @@ export function SpotifyMusicScreen({
 
       {/* Hip Hop & Rap */}
       {hipHopMusic.length > 0 && (
-        <div className="px-4 py-4">
-          <h2 className="text-xl font-black text-white mb-4">🎤 Hip Hop & Rap</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {hipHopMusic.slice(0, 10).map(song => (
-              <div key={song.id} className="group">
-                <div className="relative">
-                  <img
-                    src={song.thumbnailUrl}
-                    alt={song.title}
-                    className="w-full aspect-square rounded-xl object-cover"
-                  />
-                  <button
-                    onClick={() => onMusicClick(song)}
-                    className="absolute bottom-2 right-2 w-12 h-12 bg-green-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all shadow-2xl"
-                  >
-                    <Play className="w-5 h-5 text-white fill-white ml-1" />
-                  </button>
-                  <button
-                    onClick={() => openAddToPlaylistModal(song)}
-                    className="absolute top-2 right-2 w-8 h-8 bg-black/50 backdrop-blur-xl rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
-                  >
-                    <Plus className="w-4 h-4 text-white" />
-                  </button>
-                </div>
-                <p className="font-bold text-white text-sm mt-2 truncate">{song.title}</p>
-                <p className="text-xs text-gray-400 truncate">{song.artist || song.genre}</p>
-              </div>
+        <div className="px-6 py-6 relative z-10">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="text-2xl">🎤</div>
+            <h2 className="text-2xl font-black text-white">Hip Hop & Rap</h2>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {hipHopMusic.slice(0, 12).map(song => (
+              <MusicCard key={song.id} song={song} onMusicClick={onMusicClick} openAddToPlaylistModal={openAddToPlaylistModal} currentTrack={currentTrack} />
             ))}
           </div>
         </div>
@@ -449,149 +498,98 @@ export function SpotifyMusicScreen({
 
       {/* Afrobeat */}
       {afrobeatMusic.length > 0 && (
-        <div className="px-4 py-4">
-          <h2 className="text-xl font-black text-white mb-4">🔥 Afrobeat Vibes</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {afrobeatMusic.slice(0, 10).map(song => (
-              <div key={song.id} className="group">
-                <div className="relative">
-                  <img
-                    src={song.thumbnailUrl}
-                    alt={song.title}
-                    className="w-full aspect-square rounded-xl object-cover"
-                  />
-                  <button
-                    onClick={() => onMusicClick(song)}
-                    className="absolute bottom-2 right-2 w-12 h-12 bg-green-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all shadow-2xl"
-                  >
-                    <Play className="w-5 h-5 text-white fill-white ml-1" />
-                  </button>
-                  <button
-                    onClick={() => openAddToPlaylistModal(song)}
-                    className="absolute top-2 right-2 w-8 h-8 bg-black/50 backdrop-blur-xl rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
-                  >
-                    <Plus className="w-4 h-4 text-white" />
-                  </button>
-                </div>
-                <p className="font-bold text-white text-sm mt-2 truncate">{song.title}</p>
-                <p className="text-xs text-gray-400 truncate">{song.artist || song.genre}</p>
-              </div>
+        <div className="px-6 py-6 relative z-10">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="text-2xl">🔥</div>
+            <h2 className="text-2xl font-black text-white">Afrobeat Vibes</h2>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {afrobeatMusic.slice(0, 12).map(song => (
+              <MusicCard key={song.id} song={song} onMusicClick={onMusicClick} openAddToPlaylistModal={openAddToPlaylistModal} currentTrack={currentTrack} />
             ))}
           </div>
         </div>
       )}
 
-      {/* Pop Music */}
+      {/* Pop Hits */}
       {popMusic.length > 0 && (
-        <div className="px-4 py-4">
-          <h2 className="text-xl font-black text-white mb-4">🌟 Pop Hits</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {popMusic.slice(0, 10).map(song => (
-              <div key={song.id} className="group">
-                <div className="relative">
-                  <img
-                    src={song.thumbnailUrl}
-                    alt={song.title}
-                    className="w-full aspect-square rounded-xl object-cover"
-                  />
-                  <button
-                    onClick={() => onMusicClick(song)}
-                    className="absolute bottom-2 right-2 w-12 h-12 bg-green-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all shadow-2xl"
-                  >
-                    <Play className="w-5 h-5 text-white fill-white ml-1" />
-                  </button>
-                  <button
-                    onClick={() => openAddToPlaylistModal(song)}
-                    className="absolute top-2 right-2 w-8 h-8 bg-black/50 backdrop-blur-xl rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
-                  >
-                    <Plus className="w-4 h-4 text-white" />
-                  </button>
-                </div>
-                <p className="font-bold text-white text-sm mt-2 truncate">{song.title}</p>
-                <p className="text-xs text-gray-400 truncate">{song.artist || song.genre}</p>
-              </div>
+        <div className="px-6 py-6 relative z-10">
+          <div className="flex items-center gap-2 mb-6">
+            <Star className="w-6 h-6 text-cyan-400" />
+            <h2 className="text-2xl font-black text-white">Pop Hits</h2>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {popMusic.slice(0, 12).map(song => (
+              <MusicCard key={song.id} song={song} onMusicClick={onMusicClick} openAddToPlaylistModal={openAddToPlaylistModal} currentTrack={currentTrack} />
             ))}
           </div>
         </div>
       )}
 
       {/* All Music */}
-      <div className="px-4 py-4">
-        <h2 className="text-xl font-black text-white mb-4">All Music</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      <div className="px-6 py-6 relative z-10">
+        <h2 className="text-2xl font-black text-white mb-6">All Music</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
           {allMusic.map(song => (
-            <div key={song.id} className="group">
-              <div className="relative">
-                <img
-                  src={song.thumbnailUrl}
-                  alt={song.title}
-                  className="w-full aspect-square rounded-xl object-cover"
-                />
-                <button
-                  onClick={() => onMusicClick(song)}
-                  className="absolute bottom-2 right-2 w-12 h-12 bg-green-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all shadow-2xl"
-                >
-                  <Play className="w-5 h-5 text-white fill-white ml-1" />
-                </button>
-                <button
-                  onClick={() => openAddToPlaylistModal(song)}
-                  className="absolute top-2 right-2 w-8 h-8 bg-black/50 backdrop-blur-xl rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
-                >
-                  <Plus className="w-4 h-4 text-white" />
-                </button>
-              </div>
-              <p className="font-bold text-white text-sm mt-2 truncate">{song.title}</p>
-              <p className="text-xs text-gray-400 truncate">{song.artist || song.genre}</p>
-            </div>
+            <MusicCard key={song.id} song={song} onMusicClick={onMusicClick} openAddToPlaylistModal={openAddToPlaylistModal} currentTrack={currentTrack} />
           ))}
         </div>
       </div>
 
       {allMusic.length === 0 && (
-        <div className="text-center py-12">
-          <Music className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-          <p className="text-gray-400 text-lg">No music available yet</p>
+        <div className="text-center py-20 relative z-10">
+          <div className="w-28 h-28 rounded-full bg-gradient-to-br from-purple-600/20 to-cyan-600/20 backdrop-blur-xl border border-purple-500/30 flex items-center justify-center mx-auto mb-6">
+            <Music className="w-14 h-14 text-purple-400" />
+          </div>
+          <h3 className="text-2xl font-black text-white mb-2">No Music Available</h3>
+          <p className="text-gray-400">Check back soon for new tracks!</p>
         </div>
       )}
 
       {/* CREATE PLAYLIST MODAL */}
       {showCreatePlaylist && (
-        <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-xl flex items-center justify-center p-4">
-          <div className="bg-gradient-to-b from-gray-900 to-black border border-purple-500/30 rounded-3xl p-6 max-w-md w-full">
-            <h2 className="text-2xl font-black text-white mb-4">Create Playlist</h2>
+        <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-4">
+          <div className="bg-gradient-to-br from-purple-900/90 via-black to-black border border-purple-500/30 rounded-3xl p-8 max-w-md w-full shadow-2xl shadow-purple-500/20 relative overflow-hidden">
+            {/* Decorative elements */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-purple-600/20 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-600/20 rounded-full blur-3xl" />
             
-            <input
-              type="text"
-              placeholder="Playlist name"
-              value={newPlaylistName}
-              onChange={(e) => setNewPlaylistName(e.target.value)}
-              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 mb-3"
-            />
-            
-            <textarea
-              placeholder="Description (optional)"
-              value={newPlaylistDesc}
-              onChange={(e) => setNewPlaylistDesc(e.target.value)}
-              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 mb-4 h-24 resize-none"
-            />
+            <div className="relative z-10">
+              <h2 className="text-3xl font-black bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent mb-6">Create Playlist</h2>
+              
+              <input
+                type="text"
+                placeholder="Playlist name"
+                value={newPlaylistName}
+                onChange={(e) => setNewPlaylistName(e.target.value)}
+                className="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 mb-4 backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all"
+              />
+              
+              <textarea
+                placeholder="Description (optional)"
+                value={newPlaylistDesc}
+                onChange={(e) => setNewPlaylistDesc(e.target.value)}
+                className="w-full px-5 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 mb-6 h-28 resize-none backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all"
+              />
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowCreatePlaylist(false);
-                  setNewPlaylistName('');
-                  setNewPlaylistDesc('');
-                }}
-                className="flex-1 py-3 bg-white/10 text-white font-bold rounded-xl hover:bg-white/20 transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreatePlaylist}
-                className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black rounded-xl hover:shadow-2xl hover:shadow-purple-500/50 transition-all"
-              >
-                Create
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowCreatePlaylist(false);
+                    setNewPlaylistName('');
+                    setNewPlaylistDesc('');
+                  }}
+                  className="flex-1 py-4 bg-white/10 text-white font-bold rounded-xl hover:bg-white/20 transition-all backdrop-blur-xl border border-white/10"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreatePlaylist}
+                  className="flex-1 py-4 bg-gradient-to-r from-purple-600 via-orange-500 to-pink-600 text-white font-black rounded-xl hover:shadow-2xl hover:shadow-purple-500/50 transition-all hover:scale-[1.02]"
+                >
+                  Create
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -599,57 +597,113 @@ export function SpotifyMusicScreen({
 
       {/* ADD TO PLAYLIST MODAL */}
       {showAddToPlaylist && selectedSong && (
-        <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-xl flex items-center justify-center p-4">
-          <div className="bg-gradient-to-b from-gray-900 to-black border border-purple-500/30 rounded-3xl p-6 max-w-md w-full">
-            <h2 className="text-2xl font-black text-white mb-2">Add to Playlist</h2>
-            <p className="text-sm text-gray-400 mb-4">{selectedSong.title}</p>
+        <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-4">
+          <div className="bg-gradient-to-br from-purple-900/90 via-black to-black border border-purple-500/30 rounded-3xl p-8 max-w-md w-full shadow-2xl shadow-purple-500/20 relative overflow-hidden">
+            {/* Decorative elements */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-purple-600/20 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-600/20 rounded-full blur-3xl" />
             
-            {playlists.length === 0 ? (
-              <div className="text-center py-8">
-                <ListMusic className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-                <p className="text-gray-400 mb-4">No playlists yet</p>
-                <button
-                  onClick={() => {
-                    setShowAddToPlaylist(false);
-                    setShowCreatePlaylist(true);
-                  }}
-                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl"
-                >
-                  Create Your First Playlist
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {playlists.map(playlist => (
+            <div className="relative z-10">
+              <h2 className="text-3xl font-black text-white mb-2">Add to Playlist</h2>
+              <p className="text-sm text-gray-400 mb-6">{selectedSong.title}</p>
+              
+              {playlists.length === 0 ? (
+                <div className="text-center py-10">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-600/20 to-cyan-600/20 flex items-center justify-center mx-auto mb-4">
+                    <ListMusic className="w-10 h-10 text-purple-400" />
+                  </div>
+                  <p className="text-gray-400 mb-6">No playlists yet</p>
                   <button
-                    key={playlist.id}
-                    onClick={() => handleAddToPlaylist(playlist.id)}
-                    className="w-full flex items-center gap-3 p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-all text-left"
+                    onClick={() => {
+                      setShowAddToPlaylist(false);
+                      setShowCreatePlaylist(true);
+                    }}
+                    className="px-8 py-4 bg-gradient-to-r from-purple-600 via-orange-500 to-pink-600 text-white font-black rounded-xl hover:shadow-2xl hover:shadow-purple-500/50 transition-all"
                   >
-                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                      <ListMusic className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-white">{playlist.name}</p>
-                      <p className="text-xs text-gray-400">{playlist.songs.length} songs</p>
-                    </div>
+                    Create Your First Playlist
                   </button>
-                ))}
-              </div>
-            )}
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-3 max-h-96 overflow-y-auto mb-6">
+                    {playlists.map(playlist => (
+                      <button
+                        key={playlist.id}
+                        onClick={() => handleAddToPlaylist(playlist.id)}
+                        className="w-full flex items-center gap-4 p-4 bg-white/5 hover:bg-gradient-to-r hover:from-purple-600/20 hover:to-cyan-600/20 rounded-xl transition-all text-left border border-white/10 hover:border-purple-500/50 backdrop-blur-xl group"
+                      >
+                        <div className="w-14 h-14 bg-gradient-to-br from-purple-600 via-orange-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl group-hover:shadow-purple-500/50 transition-all">
+                          <ListMusic className="w-7 h-7 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-black text-white group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:to-cyan-400 group-hover:bg-clip-text transition-all">{playlist.name}</p>
+                          <p className="text-xs text-gray-400">{playlist.songs.length} songs</p>
+                        </div>
+                        <Plus className="w-5 h-5 text-gray-400 group-hover:text-orange-400 transition-colors" />
+                      </button>
+                    ))}
+                  </div>
 
-            <button
-              onClick={() => {
-                setShowAddToPlaylist(false);
-                setSelectedSong(null);
-              }}
-              className="w-full mt-4 py-3 bg-white/10 text-white font-bold rounded-xl hover:bg-white/20 transition-all"
-            >
-              Cancel
-            </button>
+                  <button
+                    onClick={() => {
+                      setShowAddToPlaylist(false);
+                      setSelectedSong(null);
+                    }}
+                    className="w-full py-4 bg-white/10 text-white font-bold rounded-xl hover:bg-white/20 transition-all backdrop-blur-xl border border-white/10"
+                  >
+                    Cancel
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Reusable Music Card Component
+function MusicCard({ song, onMusicClick, openAddToPlaylistModal, currentTrack }: any) {
+  return (
+    <div className="group">
+      <div className="relative rounded-xl overflow-hidden shadow-lg">
+        <img
+          src={song.thumbnailUrl}
+          alt={song.title}
+          className="w-full aspect-square object-cover"
+        />
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+        
+        {/* Play Button */}
+        <button
+          onClick={() => onMusicClick(song)}
+          className="absolute bottom-2 right-2 w-12 h-12 bg-gradient-to-r from-orange-500 to-pink-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all shadow-2xl shadow-orange-500/50 hover:scale-110"
+        >
+          <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+        </button>
+        
+        {/* Add to Playlist */}
+        <button
+          onClick={() => openAddToPlaylistModal(song)}
+          className="absolute top-2 right-2 w-9 h-9 bg-black/50 backdrop-blur-xl rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all border border-white/20 hover:bg-white/20"
+        >
+          <Plus className="w-4 h-4 text-white" />
+        </button>
+
+        {/* Now Playing Indicator */}
+        {currentTrack?.id === song.id && (
+          <div className="absolute top-2 left-2 px-2 py-1 rounded-full bg-gradient-to-r from-purple-600 to-orange-500 backdrop-blur-xl flex items-center gap-1.5 animate-pulse">
+            <div className="w-1.5 h-1.5 bg-white rounded-full" />
+            <span className="text-[10px] font-black text-white">NOW</span>
+          </div>
+        )}
+      </div>
+      <div className="mt-3">
+        <p className="font-black text-white text-sm truncate">{song.title}</p>
+        <p className="text-xs text-gray-400 truncate mt-1">{song.artist || song.genre}</p>
+      </div>
     </div>
   );
 }

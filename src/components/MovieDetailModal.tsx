@@ -1,79 +1,147 @@
-// React default import not needed with new JSX transform
-import { X, Play, Download, Star, Clock, Calendar, Film, Tv } from 'lucide-react';
-import type { Movie } from '../types/movie';
+import React from 'react';
+import { X, Play, Download, Star, Clock, Calendar, Film, Tv, Sparkles, Info } from 'lucide-react';
+
+interface Movie {
+  id: string;
+  title: string;
+  description?: string;
+  thumbnailUrl?: string;
+  genre?: string;
+  year?: string;
+  type?: 'movie' | 'series' | 'documentary';
+  fileSize?: string;
+  ageRating?: string;
+  category?: string;
+  seriesTitle?: string;
+  seasonNumber?: number;
+  episodeNumber?: number;
+  uploadedAt?: string;
+}
 
 interface MovieDetailModalProps {
   movie: Movie;
   onClose: () => void;
   onWatch: (movie: Movie) => void;
-  onDownload: (movie: Movie, type?: 'audio' | 'video') => void;
+  onDownload: (movie: Movie) => void;
 }
 
 export function MovieDetailModal({ movie, onClose, onWatch, onDownload }: MovieDetailModalProps) {
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-fade-in">
-      {/* Backdrop */}
+      {/* Backdrop with Purple Glow */}
       <div 
-        className="absolute inset-0 bg-black/90 backdrop-blur-md"
+        className="absolute inset-0 bg-black/95 backdrop-blur-xl"
         onClick={onClose}
       />
       
-      {/* Modal Content */}
-      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto glass-card rounded-3xl border-2 border-[#FFD700]/30 animate-slide-up">
-        {/* Close Button */}
+      {/* Modal Content - Premium Design */}
+      <div className="relative w-full max-w-5xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-gray-900 via-purple-900/30 to-cyan-900/30 rounded-3xl border-2 border-purple-500/30 shadow-2xl shadow-purple-500/20 animate-slide-up">
+        {/* Animated Background Gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-600/5 via-pink-600/5 to-cyan-600/5 rounded-3xl animate-pulse" />
+        
+        {/* Close Button - Premium Style */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 w-10 h-10 bg-black/60 hover:bg-black/80 rounded-full flex items-center justify-center transition-all group"
+          className="absolute top-6 right-6 z-10 w-12 h-12 bg-gradient-to-br from-purple-600/80 to-pink-600/80 backdrop-blur-md hover:from-purple-500 hover:to-pink-500 rounded-full flex items-center justify-center transition-all group shadow-lg shadow-purple-500/50 border border-purple-400/30"
         >
-          <X className="w-6 h-6 text-white group-hover:text-[#FFD700]" strokeWidth={2.5} />
+          <X className="w-7 h-7 text-white group-hover:rotate-90 transition-transform duration-300" strokeWidth={3} />
         </button>
 
-        {/* Hero Image */}
-        <div className="relative h-[40vh] md:h-[50vh] overflow-hidden rounded-t-3xl">
+        {/* Hero Image with Gradient Overlay */}
+        <div className="relative h-[45vh] md:h-[55vh] overflow-hidden rounded-t-3xl">
           {movie.thumbnailUrl ? (
-            <img
-              src={movie.thumbnailUrl}
-              alt={movie.title}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-              }}
-            />
+            <>
+              <img
+                src={movie.thumbnailUrl}
+                alt={movie.title}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+              {/* Multi-layer Gradient Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-purple-900/40 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-900/30 via-transparent to-cyan-900/30" />
+            </>
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-gray-800 to-black flex items-center justify-center">
-              <Film className="w-24 h-24 text-gray-600" />
+            <div className="w-full h-full bg-gradient-to-br from-purple-900 via-pink-900 to-cyan-900 flex items-center justify-center relative overflow-hidden">
+              {/* Animated Background Pattern */}
+              <div className="absolute inset-0 opacity-10">
+                {[...Array(20)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="absolute rounded-full bg-white animate-pulse"
+                    style={{
+                      width: `${Math.random() * 100 + 50}px`,
+                      height: `${Math.random() * 100 + 50}px`,
+                      left: `${Math.random() * 100}%`,
+                      top: `${Math.random() * 100}%`,
+                      animationDelay: `${Math.random() * 2}s`,
+                      animationDuration: `${Math.random() * 3 + 2}s`
+                    }}
+                  />
+                ))}
+              </div>
+              <Film className="w-32 h-32 text-purple-400/50 relative z-10" strokeWidth={1.5} />
             </div>
           )}
           
-          {/* Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
-          
-          {/* Title Overlay */}
-          <div className="absolute bottom-0 left-0 right-0 p-8">
+          {/* Title Section with Premium Effects */}
+          <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-gray-900 via-gray-900/95 to-transparent">
+            {/* Type Badge */}
             <div className="flex items-center gap-3 mb-4">
-              {movie.type === 'series' ? (
-                <Tv className="w-8 h-8 text-[#FFD700]" strokeWidth={2.5} />
-              ) : (
-                <Film className="w-8 h-8 text-[#FFD700]" strokeWidth={2.5} />
+              <div className="px-4 py-2 bg-gradient-to-r from-purple-600 to-cyan-600 rounded-full flex items-center gap-2 shadow-lg shadow-purple-500/50">
+                {movie.type === 'series' ? (
+                  <>
+                    <Tv className="w-5 h-5 text-white" strokeWidth={2.5} />
+                    <span className="text-white font-black text-sm uppercase">Series</span>
+                  </>
+                ) : (
+                  <>
+                    <Film className="w-5 h-5 text-white" strokeWidth={2.5} />
+                    <span className="text-white font-black text-sm uppercase">Movie</span>
+                  </>
+                )}
+              </div>
+              
+              {movie.ageRating && (
+                <div className={`px-4 py-2 rounded-full font-black text-sm shadow-lg ${
+                  movie.ageRating === '18+' 
+                    ? 'bg-gradient-to-r from-red-600 to-pink-600 text-white border border-red-400/30'
+                    : 'bg-gradient-to-r from-green-600 to-emerald-600 text-white border border-green-400/30'
+                }`}>
+                  {movie.ageRating}
+                </div>
               )}
-              <h1 className="text-4xl md:text-5xl font-black text-white gradient-gold">
-                {movie.title}
-              </h1>
             </div>
             
-            {/* Action Buttons */}
-            <div className="flex flex-wrap gap-3">
+            {/* Title with Gradient */}
+            <h1 className="text-4xl md:text-6xl font-black mb-6 bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent leading-tight">
+              {movie.title}
+            </h1>
+            
+            {/* Action Buttons - Modern 3D Style */}
+            <div className="flex flex-wrap gap-4">
               <button
                 onClick={() => onWatch(movie)}
-                className="px-8 py-4 bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black font-black text-lg rounded-2xl hover:shadow-xl hover:shadow-[#FFD700]/50 transition-all flex items-center gap-3"
+                className="group relative"
               >
-                <Play className="w-6 h-6" fill="currentColor" />
-                WATCH NOW
+                {/* 3D Shadow Layers */}
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-700 to-cyan-700 rounded-2xl transform translate-y-2 group-hover:translate-y-3 transition-transform" />
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-cyan-600 rounded-2xl transform translate-y-1 group-hover:translate-y-1.5 transition-transform" />
+                
+                {/* Main Button */}
+                <div className="relative px-8 py-4 bg-gradient-to-r from-purple-600 via-pink-600 to-cyan-500 rounded-2xl font-black text-white text-lg transform transition-all group-hover:translate-y-0.5 group-hover:shadow-2xl group-hover:shadow-cyan-500/60 flex items-center gap-3 border border-cyan-400/30">
+                  <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                    <Play className="w-5 h-5" fill="currentColor" />
+                  </div>
+                  <span>WATCH NOW</span>
+                </div>
               </button>
               
               <button
-                onClick={() => onDownload(movie, 'video')}
-                className="px-8 py-4 glass-card glass-card-hover rounded-2xl font-black text-white text-lg flex items-center gap-3"
+                onClick={() => onDownload(movie)}
+                className="px-8 py-4 bg-white/10 backdrop-blur-md hover:bg-white/20 rounded-2xl font-black text-white text-lg flex items-center gap-3 transition-all border border-purple-400/30 hover:border-cyan-400/50 hover:shadow-lg hover:shadow-cyan-500/30"
               >
                 <Download className="w-6 h-6" strokeWidth={2.5} />
                 DOWNLOAD
@@ -82,74 +150,77 @@ export function MovieDetailModal({ movie, onClose, onWatch, onDownload }: MovieD
           </div>
         </div>
 
-        {/* Details Section */}
-        <div className="p-8 space-y-6">
-          {/* Meta Information */}
-          <div className="flex flex-wrap gap-4">
+        {/* Details Section - Premium Cards */}
+        <div className="relative p-8 space-y-6">
+          {/* Meta Information - Glassmorphism Cards */}
+          <div className="flex flex-wrap gap-3">
             {movie.year && (
-              <div className="flex items-center gap-2 text-gray-300">
-                <Calendar className="w-5 h-5 text-[#FFD700]" />
-                <span className="font-bold">{movie.year}</span>
+              <div className="flex items-center gap-2 px-4 py-2 bg-white/5 backdrop-blur-md border border-purple-400/20 rounded-xl hover:bg-white/10 transition-all">
+                <Calendar className="w-5 h-5 text-cyan-400" />
+                <span className="font-bold text-white">{movie.year}</span>
               </div>
             )}
             
             {movie.fileSize && (
-              <div className="flex items-center gap-2 text-gray-300">
-                <Clock className="w-5 h-5 text-[#FFD700]" />
-                <span className="font-bold">{movie.fileSize}</span>
+              <div className="flex items-center gap-2 px-4 py-2 bg-white/5 backdrop-blur-md border border-purple-400/20 rounded-xl hover:bg-white/10 transition-all">
+                <Clock className="w-5 h-5 text-purple-400" />
+                <span className="font-bold text-white">{movie.fileSize}</span>
               </div>
             )}
             
             {movie.genre && (
-              <div className="px-4 py-2 bg-gradient-to-r from-[#FFD700]/20 to-[#FFA500]/20 border-2 border-[#FFD700]/30 rounded-lg">
-                <span className="text-[#FFD700] font-black">{movie.genre}</span>
+              <div className="px-4 py-2 bg-gradient-to-r from-purple-600/20 to-cyan-600/20 border border-purple-400/30 rounded-xl hover:from-purple-600/30 hover:to-cyan-600/30 transition-all">
+                <span className="text-cyan-300 font-black">{movie.genre}</span>
               </div>
             )}
             
-            {movie.ageRating && (
-              <div className={`px-4 py-2 rounded-lg font-black ${
-                movie.ageRating === '18+' 
-                  ? 'bg-red-500/20 border-2 border-red-500 text-red-500'
-                  : 'bg-green-500/20 border-2 border-green-500 text-green-500'
-              }`}>
-                {movie.ageRating}
-              </div>
-            )}
-            
-            {movie.type && (
-              <div className="px-4 py-2 bg-purple-500/20 border-2 border-purple-500/50 rounded-lg">
-                <span className="text-purple-400 font-black uppercase">{movie.type}</span>
+            {movie.category && (
+              <div className="px-4 py-2 bg-gradient-to-r from-pink-600/20 to-purple-600/20 border border-pink-400/30 rounded-xl hover:from-pink-600/30 hover:to-purple-600/30 transition-all">
+                <span className="text-pink-300 font-black capitalize">{movie.category}</span>
               </div>
             )}
           </div>
 
           {/* Series Information */}
           {movie.type === 'series' && (movie.seriesTitle || movie.seasonNumber || movie.episodeNumber) && (
-            <div className="p-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-2 border-blue-500/30 rounded-2xl">
-              <h3 className="text-xl font-black text-white mb-3 flex items-center gap-2">
-                <Tv className="w-6 h-6 text-blue-400" />
+            <div className="p-6 bg-gradient-to-br from-purple-600/10 via-pink-600/10 to-cyan-600/10 border-2 border-purple-500/30 rounded-2xl backdrop-blur-md">
+              <h3 className="text-xl font-black text-white mb-4 flex items-center gap-2">
+                <Tv className="w-6 h-6 text-cyan-400" />
                 Series Information
               </h3>
-              <div className="space-y-2 text-gray-300">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {movie.seriesTitle && (
-                  <p className="font-bold">Series: <span className="text-white">{movie.seriesTitle}</span></p>
+                  <div className="p-3 bg-white/5 rounded-xl border border-purple-400/20">
+                    <p className="text-gray-400 text-xs font-bold mb-1">Series</p>
+                    <p className="text-white font-black">{movie.seriesTitle}</p>
+                  </div>
                 )}
                 {movie.seasonNumber && (
-                  <p className="font-bold">Season: <span className="text-white">{movie.seasonNumber}</span></p>
+                  <div className="p-3 bg-white/5 rounded-xl border border-purple-400/20">
+                    <p className="text-gray-400 text-xs font-bold mb-1">Season</p>
+                    <p className="text-white font-black">{movie.seasonNumber}</p>
+                  </div>
                 )}
                 {movie.episodeNumber && (
-                  <p className="font-bold">Episode: <span className="text-white">{movie.episodeNumber}</span></p>
+                  <div className="p-3 bg-white/5 rounded-xl border border-purple-400/20">
+                    <p className="text-gray-400 text-xs font-bold mb-1">Episode</p>
+                    <p className="text-white font-black">{movie.episodeNumber}</p>
+                  </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* Description */}
+          {/* Description - Premium Card */}
           {movie.description && (
-            <div>
-              <h3 className="text-2xl font-black text-white mb-4 flex items-center gap-2">
-                <Star className="w-6 h-6 text-[#FFD700]" fill="currentColor" />
-                Overview
+            <div className="p-6 bg-gradient-to-br from-gray-800/50 to-purple-900/20 border-2 border-purple-500/20 rounded-2xl backdrop-blur-sm">
+              <h3 className="text-2xl font-black mb-4 flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-cyan-600 rounded-full flex items-center justify-center shadow-lg shadow-purple-500/50">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <span className="bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
+                  Overview
+                </span>
               </h3>
               <p className="text-gray-300 text-lg leading-relaxed">
                 {movie.description}
@@ -157,42 +228,42 @@ export function MovieDetailModal({ movie, onClose, onWatch, onDownload }: MovieD
             </div>
           )}
 
-          {/* Additional Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {movie.category && (
-              <div className="p-4 bg-white/5 rounded-xl border-2 border-white/10">
-                <p className="text-gray-400 text-sm font-bold mb-1">Category</p>
-                <p className="text-white font-black capitalize">{movie.category}</p>
+          {/* Upload Date */}
+          {movie.uploadedAt && (
+            <div className="p-4 bg-white/5 backdrop-blur-md rounded-xl border border-purple-400/20">
+              <div className="flex items-center gap-3">
+                <Info className="w-5 h-5 text-cyan-400" />
+                <div>
+                  <p className="text-gray-400 text-sm font-bold">Added On</p>
+                  <p className="text-white font-black">
+                    {new Date(movie.uploadedAt).toLocaleDateString('en-US', {
+                      month: 'long',
+                      day: 'numeric',
+                      year: 'numeric'
+                    })}
+                  </p>
+                </div>
               </div>
-            )}
-            
-            {movie.uploadedAt && (
-              <div className="p-4 bg-white/5 rounded-xl border-2 border-white/10">
-                <p className="text-gray-400 text-sm font-bold mb-1">Added On</p>
-                <p className="text-white font-black">
-                  {new Date(movie.uploadedAt).toLocaleDateString('en-US', {
-                    month: 'long',
-                    day: 'numeric',
-                    year: 'numeric'
-                  })}
-                </p>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Bottom Action Buttons - Repeated for convenience */}
-          <div className="flex flex-wrap gap-3 pt-4 border-t-2 border-white/10">
+          {/* Bottom Action Buttons */}
+          <div className="flex flex-wrap gap-4 pt-6 border-t-2 border-purple-500/20">
             <button
               onClick={() => onWatch(movie)}
-              className="flex-1 min-w-[200px] px-8 py-5 bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black font-black text-lg rounded-2xl hover:shadow-xl hover:shadow-[#FFD700]/50 transition-all flex items-center justify-center gap-3"
+              className="group relative flex-1 min-w-[200px]"
             >
-              <Play className="w-6 h-6" fill="currentColor" />
-              WATCH NOW
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-700 to-cyan-700 rounded-2xl transform translate-y-2 group-hover:translate-y-3 transition-transform" />
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-cyan-600 rounded-2xl transform translate-y-1 group-hover:translate-y-1.5 transition-transform" />
+              <div className="relative px-8 py-5 bg-gradient-to-r from-purple-600 via-pink-600 to-cyan-500 rounded-2xl font-black text-white text-lg transform transition-all group-hover:translate-y-0.5 group-hover:shadow-2xl group-hover:shadow-cyan-500/60 flex items-center justify-center gap-3 border border-cyan-400/30">
+                <Play className="w-6 h-6" fill="currentColor" />
+                WATCH NOW
+              </div>
             </button>
             
             <button
-              onClick={() => onDownload(movie, 'video')}
-              className="flex-1 min-w-[200px] px-8 py-5 glass-card glass-card-hover rounded-2xl font-black text-white text-lg flex items-center justify-center gap-3"
+              onClick={() => onDownload(movie)}
+              className="flex-1 min-w-[200px] px-8 py-5 bg-white/10 backdrop-blur-md hover:bg-white/20 rounded-2xl font-black text-white text-lg flex items-center justify-center gap-3 transition-all border border-purple-400/30 hover:border-cyan-400/50 hover:shadow-lg hover:shadow-cyan-500/30"
             >
               <Download className="w-6 h-6" strokeWidth={2.5} />
               DOWNLOAD

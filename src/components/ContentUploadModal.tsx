@@ -1,7 +1,28 @@
-import { useState } from 'react';
-import type { Movie } from '../types/movie';
-import { X, Upload, Tv, Music as MusicIcon, Loader, Plus, FileUp } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Upload, Film, Tv, Music as MusicIcon, Loader, Plus, FileUp } from 'lucide-react';
 
+interface Movie {
+  id: string;
+  title: string;
+  description: string;
+  videoUrl: string;
+  thumbnailUrl: string;
+  genre: string;
+  year: string;
+  type: string;
+  fileSize?: string;
+  category?: 'movie' | 'series' | 'music';
+  ageRating?: 'G' | 'PG' | 'PG-13' | 'R' | '18+' | 'Kids';
+  section?: string;
+  uploadedAt?: string;
+  // Series fields
+  seriesTitle?: string;
+  seasonNumber?: number;
+  episodeNumber?: number;
+  // Music fields
+  contentType?: 'music-video' | 'music-audio';
+  artist?: string;
+}
 
 interface ContentUploadModalProps {
   isOpen: boolean;
@@ -357,7 +378,7 @@ export function ContentUploadModal({
               onClick={() => setUploadMode('single')}
               className={`flex-1 py-3 rounded-xl font-bold transition-all ${
                 uploadMode === 'single'
-                  ? 'bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black'
+                  ? 'bg-gradient-to-r from-purple-600 to-cyan-600 text-white shadow-lg shadow-purple-500/50'
                   : 'bg-white/10 text-white hover:bg-white/20'
               }`}
             >
@@ -367,7 +388,7 @@ export function ContentUploadModal({
               onClick={() => setUploadMode('bulk')}
               className={`flex-1 py-3 rounded-xl font-bold transition-all ${
                 uploadMode === 'bulk'
-                  ? 'bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black'
+                  ? 'bg-gradient-to-r from-purple-600 to-cyan-600 text-white shadow-lg shadow-purple-500/50'
                   : 'bg-white/10 text-white hover:bg-white/20'
               }`}
             >
@@ -377,7 +398,7 @@ export function ContentUploadModal({
               onClick={() => setUploadMode('series-bulk')}
               className={`flex-1 py-3 rounded-xl font-bold transition-all ${
                 uploadMode === 'series-bulk'
-                  ? 'bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black'
+                  ? 'bg-gradient-to-r from-purple-600 to-cyan-600 text-white shadow-lg shadow-purple-500/50'
                   : 'bg-white/10 text-white hover:bg-white/20'
               }`}
             >
@@ -401,7 +422,7 @@ export function ContentUploadModal({
                   onClick={() => setContentType(type.value as any)}
                   className={`py-3 px-2 rounded-xl font-bold text-sm transition-all ${
                     contentType === type.value
-                      ? 'bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black'
+                      ? 'bg-gradient-to-r from-purple-600 to-cyan-600 text-white shadow-lg shadow-purple-500/50'
                       : 'bg-white/10 text-white hover:bg-white/20'
                   }`}
                 >
@@ -427,6 +448,32 @@ export function ContentUploadModal({
                 <p className="text-xs text-gray-500">
                   💡 AWS S3 URL format: <code className="bg-black/50 px-2 py-1 rounded">https://your-bucket.s3.amazonaws.com/filename.mp4</code>
                 </p>
+              </div>
+
+              {/* VIDEO FORMAT WARNING */}
+              <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+                <h3 className="text-red-400 font-bold mb-2 flex items-center gap-2">
+                  ⚠️ IMPORTANT: Supported Video Formats
+                </h3>
+                <div className="text-sm space-y-2">
+                  <div>
+                    <p className="text-green-400 font-bold mb-1">✅ SUPPORTED (Use These!):</p>
+                    <ul className="text-gray-300 text-xs space-y-1 ml-4">
+                      <li>• MP4 with H.264 video codec + AAC audio (RECOMMENDED)</li>
+                      <li>• WebM with VP8/VP9 codec</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <p className="text-red-400 font-bold mb-1">❌ NOT SUPPORTED:</p>
+                    <ul className="text-gray-400 text-xs space-y-1 ml-4">
+                      <li>• AVI, MKV, MOV, FLV, WMV, MPG</li>
+                      <li>• Videos with unsupported codecs</li>
+                    </ul>
+                  </div>
+                  <p className="text-cyan-400 text-xs mt-2">
+                    💡 TIP: Convert your videos to MP4 (H.264) using tools like HandBrake or FFmpeg before uploading to AWS S3!
+                  </p>
+                </div>
               </div>
 
               {/* Title */}
@@ -945,7 +992,7 @@ export function ContentUploadModal({
                   </div>
                   <div className="w-full h-3 bg-gray-700 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-gradient-to-r from-purple-600 to-pink-500 transition-all duration-300"
+                      className="h-full bg-gradient-to-r from-purple-600 to-cyan-600 transition-all duration-300"
                       style={{ width: `${uploadProgress}%` }}
                     />
                   </div>

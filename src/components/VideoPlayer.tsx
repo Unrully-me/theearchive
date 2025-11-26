@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Play, Pause, Volume2, VolumeX, Maximize, Minimize2, SkipBack, SkipForward } from 'lucide-react';
 
 interface VideoPlayerProps {
-  videoUrl?: string;
-  title?: string;
-  description?: string;
-  year?: string;
-  genre?: string;
+  videoUrl: string;
+  title: string;
+  description: string;
+  year: string;
+  genre: string;
   onClose: () => void;
 }
 
@@ -21,8 +21,29 @@ export function VideoPlayer({ videoUrl, title, description, year, genre, onClose
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [isPiP, setIsPiP] = useState(false);
-  // use ReturnType<typeof setTimeout> for browser setTimeout which returns number
-  const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Validate video URL on mount
+  useEffect(() => {
+    console.log('🎬 VideoPlayer mounted with URL:', videoUrl);
+    
+    if (!videoUrl || videoUrl.trim() === '') {
+      setVideoError('No video URL provided');
+      console.error('❌ VideoPlayer Error: No video URL provided');
+      return;
+    }
+    
+    // Check if URL is valid
+    try {
+      new URL(videoUrl);
+      console.log('✅ Video URL is valid:', videoUrl);
+    } catch (e) {
+      setVideoError('Invalid video URL format');
+      console.error('❌ VideoPlayer Error: Invalid video URL format:', videoUrl);
+      return;
+    }
+  }, [videoUrl]);
 
   // Play/Pause toggle
   const togglePlay = () => {
@@ -58,15 +79,18 @@ export function VideoPlayer({ videoUrl, title, description, year, genre, onClose
     }
   };
 
-  // Change volume
+  // Change volume - FIXED: Don't auto-mute when adjusting volume
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value);
     setVolume(newVolume);
     if (videoRef.current) {
       videoRef.current.volume = newVolume;
+      // Only update mute state if volume is exactly 0, not when adjusting
       if (newVolume === 0) {
         setIsMuted(true);
       } else if (isMuted) {
+        // Unmute when user increases volume from 0
+        videoRef.current.muted = false;
         setIsMuted(false);
       }
     }
@@ -148,6 +172,57 @@ export function VideoPlayer({ videoUrl, title, description, year, genre, onClose
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
     
+    // Handle video errors
+    const handleError = (e: Event) => {
+      console.error('❌ Video playback error:', e);
+      const error = (e.target as HTMLVideoElement)?.error;
+      if (error) {
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
+        
+        let errorMessage = 'Failed to load video';
+        let detailedHelp = '';
+        
+        switch (error.code) {
+          case 1:
+            errorMessage = 'Video loading aborted';
+            detailedHelp = 'The video loading was interrupted. Please try again.';
+            break;
+          case 2:
+            errorMessage = 'Network error while loading video';
+            detailedHelp = 'Could not load the video due to network issues. Check your internet connection.';
+            break;
+          case 3:
+            errorMessage = 'Video decoding failed';
+            detailedHelp = 'The video file may be corrupted or in an unsupported format.';
+            break;
+          case 4:
+            errorMessage = 'Video format not supported';
+            detailedHelp = 'This video format is not supported by your browser.\n\n' +
+                          '✅ SUPPORTED FORMATS:\n' +
+                          '• MP4 (H.264 video codec + AAC audio)\n' +
+                          '• WebM (VP8/VP9 video codec)\n\n' +
+                          '❌ UNSUPPORTED:\n' +
+                          '• AVI, MKV, MOV, FLV, WMV\n' +
+                          '• Videos with unsupported codecs\n\n' +
+                          '📝 SOLUTION:\n' +
+                          'Please re-upload this video in MP4 format (H.264 codec) using the admin portal.';
+            break;
+        }
+        
+        setVideoError(errorMessage);
+        console.error('🚨 DETAILED ERROR:', detailedHelp);
+        console.error('🎬 Video URL that failed:', videoUrl);
+        
+        alert(`❌ ${errorMessage}\n\n${detailedHelp}`);
+        
+        // Auto-close the player after showing error
+        setTimeout(() => {
+          onClose();
+        }, 2000);
+      }
+    };
+    
     // PiP event listeners
     const handleEnterPiP = () => {
       console.log('Entered PiP mode');
@@ -164,6 +239,7 @@ export function VideoPlayer({ videoUrl, title, description, year, genre, onClose
     video.addEventListener('loadedmetadata', updateDuration);
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePause);
+    video.addEventListener('error', handleError);
     video.addEventListener('enterpictureinpicture', handleEnterPiP);
     video.addEventListener('leavepictureinpicture', handleLeavePiP);
 
@@ -172,13 +248,11 @@ export function VideoPlayer({ videoUrl, title, description, year, genre, onClose
       video.removeEventListener('loadedmetadata', updateDuration);
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePause);
+      video.removeEventListener('error', handleError);
       video.removeEventListener('enterpictureinpicture', handleEnterPiP);
       video.removeEventListener('leavepictureinpicture', handleLeavePiP);
     };
   }, []);
-
-  // If no video URL supplied, render nothing (defensive runtime guard)
-  if (!videoUrl) return null;
 
   // Autoplay when video is loaded
   useEffect(() => {
@@ -204,7 +278,7 @@ export function VideoPlayer({ videoUrl, title, description, year, genre, onClose
   const resetControlsTimeout = () => {
     setShowControls(true);
     if (controlsTimeoutRef.current) {
-      clearTimeout(controlsTimeoutRef.current as unknown as number);
+      clearTimeout(controlsTimeoutRef.current);
     }
     if (isPlaying) {
       controlsTimeoutRef.current = setTimeout(() => {
@@ -217,7 +291,7 @@ export function VideoPlayer({ videoUrl, title, description, year, genre, onClose
     resetControlsTimeout();
     return () => {
       if (controlsTimeoutRef.current) {
-        clearTimeout(controlsTimeoutRef.current as unknown as number);
+        clearTimeout(controlsTimeoutRef.current);
       }
     };
   }, [isPlaying]);
@@ -383,8 +457,8 @@ export function VideoPlayer({ videoUrl, title, description, year, genre, onClose
                     type="range"
                     min="0"
                     max="1"
-                    step="0.1"
-                    value={isMuted ? 0 : volume}
+                    step="0.01"
+                    value={volume}
                     onChange={handleVolumeChange}
                     className="w-0 group-hover:w-24 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer transition-all duration-300"
                     style={{

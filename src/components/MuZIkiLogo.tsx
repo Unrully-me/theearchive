@@ -79,7 +79,7 @@ export function MuZIkiLogo({ className = "w-6 h-6", isActive = false }: MuZIkiLo
         {/* Note Flag - Wave Style */}
         <path 
           d="M 15 6 Q 18 7 18 9 Q 18 11 15 12" 
-          stroke={isActive ? "#FFA500" : "#6B7280"}
+          stroke={isActive ? "#06B6D4" : "#6B7280"}
           strokeWidth="1.5"
           strokeLinecap="round"
           fill="none"
@@ -96,7 +96,7 @@ export function MuZIkiLogo({ className = "w-6 h-6", isActive = false }: MuZIkiLo
         />
         <path 
           d="M 21.5 11 Q 23 14 21.5 17" 
-          stroke={isActive ? "#FFA500" : "#6B7280"}
+          stroke={isActive ? "#06B6D4" : "#6B7280"}
           strokeWidth="1"
           strokeLinecap="round"
           fill="none"

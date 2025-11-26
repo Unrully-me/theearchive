@@ -1,8 +1,17 @@
-// React default import not required with new JSX transform
+import React from 'react';
 import { ArrowLeft, Play, Trash2, Clock } from 'lucide-react';
-import type { Movie } from '../types/movie';
 
-// using shared Movie type from src/types/movie
+interface Movie {
+  id: string;
+  title: string;
+  description: string;
+  videoUrl: string;
+  thumbnailUrl: string;
+  genre: string;
+  year: string;
+  type: string;
+  watchedAt?: string;
+}
 
 interface WatchHistoryScreenProps {
   history: Movie[];
@@ -92,7 +101,7 @@ export function WatchHistoryScreen({ history, onPlay, onDelete, onBack }: WatchH
                   <div className="flex gap-2 mt-2">
                     <button
                       onClick={() => onPlay(movie)}
-                      className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black font-black text-sm py-2 rounded-lg hover:shadow-lg hover:shadow-[#FFD700]/50 transition-all"
+                      className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-cyan-600 text-white font-black text-sm py-2 rounded-lg hover:shadow-lg hover:shadow-cyan-500/50 transition-all"
                     >
                       <Play className="w-4 h-4" />
                       Watch Again

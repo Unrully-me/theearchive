@@ -10,6 +10,7 @@ import { SectionWithAll } from './components/SectionWithAll';
 import { ProfileMenuList } from './components/ProfileMenuList';
 import { DownloadsScreen } from './components/DownloadsScreen';
 import { WatchHistoryScreen } from './components/WatchHistoryScreen';
+import { BrowseAllCategoriesScreen } from './components/BrowseAllCategoriesScreen';
 import { MovieCard } from './components/MovieCard';
 import { AgeVerificationModal } from './components/AgeVerificationModal';
 import { PinLockModal } from './components/PinLockModal';
@@ -19,6 +20,7 @@ import { SeriesDetailScreen } from './components/SeriesDetailScreen';
 import { MovieDetailModal } from './components/MovieDetailModal';
 import { MusicPlayer } from './components/MusicPlayer';
 import { SpotifyMusicScreen } from './components/SpotifyMusicScreen';
+import { WFeed } from './components/WFeed';
 import { groupSeriesEpisodes } from './utils/seriesGrouping';
 import MovieAdminPortal from './movie-admin';
 import AdminPortal from './admin';
@@ -92,6 +94,7 @@ export default function App() {
   const [showDownloadsScreen, setShowDownloadsScreen] = useState(false);
   const [showWatchHistoryScreen, setShowWatchHistoryScreen] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showBrowseAllCategories, setShowBrowseAllCategories] = useState(false);
   
   // Data States
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -260,9 +263,21 @@ export default function App() {
   };
 
   const handleWatch = (movie: Movie) => {
+    console.log('🎬 handleWatch called for:', movie.title, '| Category:', movie.category, '| Type:', movie.type, '| AgeRating:', movie.ageRating);
+    console.log('📹 Video URL:', movie.videoUrl);
+    console.log('👤 Current User:', currentUser ? currentUser.email : 'Not logged in');
+    
     if (!currentUser) {
+      console.warn('⚠️ User not logged in - showing auth modal');
       alert('Please sign in to watch movies!')
       setShowAuthModal(true);
+      return;
+    }
+    
+    // Validate video URL
+    if (!movie.videoUrl || movie.videoUrl.trim() === '') {
+      console.error('❌ No video URL for:', movie.title);
+      alert(`Cannot play "${movie.title}" - No video URL found!\n\nPlease upload a valid video file in the admin portal.`);
       return;
     }
     
@@ -274,9 +289,13 @@ export default function App() {
     
     // If it's a series, show series detail screen instead
     if (movie.type === 'series' && movie.episodes && movie.episodes.length > 0) {
+      console.log('📺 Opening series detail screen for:', movie.title);
       handleSeriesClick(movie);
       return;
     }
+    
+    console.log('✅ Opening video player for:', movie.title);
+    console.log('🎯 Kids content check - AgeRating:', movie.ageRating, '| Is Kids:', movie.ageRating === 'Kids');
     
     // Track activity
     trackActivity(movie.id, 'watch', movie.title);
@@ -298,6 +317,7 @@ export default function App() {
     
     setSelectedMovie(movie);
     setShowPlayer(true);
+    console.log('🎥 Video player state set - showPlayer:', true);
   };
 
   const handleMovieInfo = (movie: Movie) => {
@@ -305,10 +325,34 @@ export default function App() {
     setShowMovieDetail(true);
   };
 
-  const handleDownload = (movie: Movie) => {
+  const handleDownload = async (movie: Movie) => {
+    console.log('🔥 ===== DOWNLOAD TRIGGERED =====');
+    console.log('🔥 Movie:', movie.title, '| ID:', movie.id);
+    console.log('🔥 Movie Type:', movie.type, '| Category:', movie.category);
+    console.log('🔥 VideoURL:', movie.videoUrl);
+    console.log('🔥 VideoURL Type:', typeof movie.videoUrl);
+    console.log('🔥 VideoURL Length:', movie.videoUrl?.length || 0);
+    console.log('🔥 Is Series with Episodes:', movie.type === 'series' && movie.episodes && movie.episodes.length > 0);
+    console.log('🔥 User:', currentUser ? currentUser.email : 'NOT LOGGED IN');
+    console.log('🔥 ================================');
+    
     if (!currentUser) {
       alert('Please sign in to download!');
       setShowAuthModal(true);
+      return;
+    }
+    
+    // BLOCK SERIES DOWNLOADS - Users should download individual episodes
+    if (movie.type === 'series' && movie.episodes && movie.episodes.length > 0) {
+      console.warn('🚫 Blocked series download - user should download episodes individually');
+      alert(`📺 "${movie.title}" is a series!\n\n✅ Tap to view episodes, then download individual episodes.`);
+      return;
+    }
+    
+    // Validate video URL before proceeding
+    if (!movie.videoUrl || movie.videoUrl.trim() === '') {
+      console.error('❌ NO VIDEO URL! Movie:', movie.title, 'VideoURL:', movie.videoUrl);
+      alert(`❌ Cannot download "${movie.title}"\n\nNo video URL found!\n\nPlease upload a video in the admin portal.`);
       return;
     }
     
@@ -325,9 +369,59 @@ export default function App() {
     setDownloads(updatedDownloads);
     localStorage.setItem('downloads', JSON.stringify(updatedDownloads));
     
-    alert(`Downloading: ${movie.title}`);
-    // Trigger actual download
-    window.open(movie.videoUrl, '_blank');
+    const filename = `${movie.title.replace(/[^a-z0-9\s]/gi, '_')}.mp4`;
+    
+    alert(`Starting download: ${movie.title}\n\nPlease wait...`);
+    
+    try {
+      console.log('📥 Starting download for:', movie.title);
+      console.log('📥 Video URL:', movie.videoUrl);
+      
+      // FIXED: Use backend proxy to handle CORS issues with auth token
+      const proxyUrl = `${API_URL}/download-proxy?url=${encodeURIComponent(movie.videoUrl)}&filename=${encodeURIComponent(filename)}`;
+      console.log('📥 Proxy URL:', proxyUrl);
+      
+      // Fetch through proxy with auth header, then create blob URL
+      const response = await fetch(proxyUrl, {
+        headers: {
+          'Authorization': `Bearer ${publicAnonKey}`
+        }
+      });
+      
+      console.log('📥 Proxy response status:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Proxy failed! Status:', response.status, 'Error:', errorText);
+        throw new Error(`Proxy failed: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+      
+      // Get the blob from response
+      console.log('📥 Creating blob from response...');
+      const blob = await response.blob();
+      console.log('✅ Blob received! Size:', blob.size, 'bytes (', (blob.size / 1024 / 1024).toFixed(2), 'MB )');
+      
+      // Create object URL and download
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      
+      // Trigger download
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+      
+      console.log('✅ Download completed through proxy');
+      alert(`✅ Download started: ${movie.title}`);
+    } catch (error) {
+      console.error('❌ Download failed:', error);
+      alert(`❌ Download failed for: ${movie.title}\n\nError: ${error}\n\nThe file might be too large or unavailable. Try again or contact support.`);
+    }
   };
 
   const trackActivity = async (movieId: string, action: 'watch' | 'download', movieTitle: string) => {
@@ -449,7 +543,7 @@ export default function App() {
     setShowPlayer(true);
   };
 
-  const handleDownloadEpisode = (episode: any) => {
+  const handleDownloadEpisode = async (episode: any) => {
     if (!currentUser) {
       alert('Please sign in to download!');
       setShowAuthModal(true);
@@ -459,8 +553,54 @@ export default function App() {
     // Track activity
     trackActivity(selectedSeries?.id || episode.id, 'download', `${selectedSeries?.title} - ${episode.title}`);
     
-    alert(`Downloading: ${episode.title}`);
-    window.open(episode.videoUrl, '_blank');
+    const filename = `${episode.title.replace(/[^a-z0-9\s]/gi, '_')}.mp4`;
+    
+    alert(`Starting download: ${episode.title}\n\nPlease wait...`);
+    
+    try {
+      console.log('📥 Starting episode download for:', episode.title);
+      console.log('📥 Video URL:', episode.videoUrl);
+      
+      // FIXED: Use backend proxy to handle CORS issues with auth token
+      const proxyUrl = `${API_URL}/download-proxy?url=${encodeURIComponent(episode.videoUrl)}&filename=${encodeURIComponent(filename)}`;
+      console.log('📥 Proxy URL:', proxyUrl);
+      
+      // Fetch through proxy with auth header, then create blob URL
+      const response = await fetch(proxyUrl, {
+        headers: {
+          'Authorization': `Bearer ${publicAnonKey}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Proxy failed: ${response.status} ${response.statusText}`);
+      }
+      
+      // Get the blob from response
+      const blob = await response.blob();
+      console.log('✅ Blob received, size:', blob.size, 'bytes');
+      
+      // Create object URL and download
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      
+      // Trigger download
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+      
+      console.log('✅ Download completed through proxy');
+      alert(`✅ Download started: ${episode.title}`);
+    } catch (error) {
+      console.error('❌ Download failed:', error);
+      alert(`❌ Download failed for: ${episode.title}\n\nError: ${error}\n\nThe file might be too large or unavailable. Try again or contact support.`);
+    }
   };
 
   // Handle 18+ Tab Change with Security
@@ -583,6 +723,17 @@ export default function App() {
 
   const filteredMovies = getFilteredMovies();
   
+  // DEBUG: Log filtered movies for trending section
+  console.log('🔍 Filtered Movies Count:', filteredMovies.length);
+  if (filteredMovies.length > 0) {
+    console.log('🔍 First 3 movies:', filteredMovies.slice(0, 3).map(m => ({
+      title: m.title,
+      id: m.id,
+      videoUrl: m.videoUrl ? m.videoUrl.substring(0, 50) + '...' : 'NO VIDEO URL',
+      hasVideoUrl: !!m.videoUrl
+    })));
+  }
+  
   // HERO SLIDER - Show newest MOVIE/SERIES uploads only (NO MUSIC, NO 18+)
   const heroMovies = [...filteredMovies]
     .filter(m => m.category !== 'music' && m.ageRating !== '18+') // Exclude music and 18+ from hero slider
@@ -666,24 +817,24 @@ export default function App() {
       {/* Animated Background */}
       <AnimatedBackground />
       
-      {/* MOBILE HEADER */}
-      <header className="md:hidden sticky top-0 z-50 bg-black/80 backdrop-blur-2xl border-b border-[#FFD700]/30 shadow-[0_4px_24px_rgba(255,215,0,0.2)]">
+      {/* MOBILE HEADER - FIXED POSITIONING FOR ALWAYS VISIBLE */}
+      <header className="md:hidden fixed top-0 left-0 right-0 z-[100] bg-black/98 backdrop-blur-3xl border-b border-purple-500/40 shadow-[0_4px_24px_rgba(168,85,247,0.4)]">
         <div className="px-4 py-3 flex items-center justify-between relative">
           {/* Animated glow line at bottom */}
-          <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#FFD700] to-transparent animate-pulse" />
+          <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-pulse" />
           
           {/* Logo */}
           <div className="flex items-center gap-2">
             <div className="relative group/logo">
               {/* Rotating outer glow */}
-              <div className="absolute inset-[-4px] bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF4500] rounded-xl opacity-30 blur-lg group-hover/logo:opacity-60 transition-opacity animate-spin-slow" />
+              <div className="absolute inset-[-4px] bg-gradient-to-r from-purple-600 via-orange-500 to-cyan-500 rounded-xl opacity-30 blur-lg group-hover/logo:opacity-60 transition-opacity animate-spin-slow" />
               
               {/* Pulsing glow */}
-              <div className="absolute inset-0 bg-gradient-to-r from-[#FFD700] to-[#FFA500] blur-xl opacity-50 animate-pulse" />
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-500 via-orange-400 to-cyan-400 blur-xl opacity-50 animate-pulse" />
               
               {/* Logo box */}
-              <div className="relative bg-gradient-to-br from-[#FFD700] via-[#FFA500] to-[#FF4500] p-1.5 rounded-lg shadow-2xl transform group-hover/logo:scale-105 transition-transform">
-                <Film className="w-5 h-5 text-black" />
+              <div className="relative bg-gradient-to-br from-purple-600 via-orange-500 to-cyan-600 p-1.5 rounded-lg shadow-2xl transform group-hover/logo:scale-105 transition-transform">
+                <Film className="w-5 h-5 text-white" />
                 {/* SECRET ADMIN SWITCH - Red dot with vibrating animation - 6 clicks to open */}
                 <div 
                   onClick={(e) => {
@@ -697,28 +848,25 @@ export default function App() {
             </div>
             <div className="relative">
               {/* Text glow effect */}
-              <div className="absolute inset-0 blur-md bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF4500] opacity-30" />
-              <h1 className="relative text-lg font-black bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF4500] bg-clip-text text-transparent tracking-tight">
+              <div className="absolute inset-0 blur-md bg-gradient-to-r from-purple-500 via-orange-400 to-cyan-400 opacity-40" />
+              <h1 className="relative text-lg font-black bg-gradient-to-r from-purple-400 via-orange-400 to-cyan-400 bg-clip-text text-transparent tracking-tight drop-shadow-lg">
                 THEE ARCHIVE
               </h1>
             </div>
           </div>
           
-          {/* Profile Icon / Sign In */}
+          {/* Profile Icon / Sign In - Mobile opens profile menu */}
           {currentUser ? (
             <button
-              onClick={() => {
-                setShowProfileMenu(true);
-                setActiveBottomTab('home');
-              }}
-              className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FFD700] to-[#FF4500] flex items-center justify-center"
+              onClick={() => setShowProfileMenu(true)}
+              className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center shadow-lg shadow-purple-500/50"
             >
-              <User className="w-5 h-5 text-black" />
+              <User className="w-5 h-5 text-white" />
             </button>
           ) : (
             <button
               onClick={() => setShowAuthModal(true)}
-              className="px-4 py-2 bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black font-bold text-sm rounded-lg"
+              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-sm rounded-lg shadow-lg shadow-purple-500/50"
             >
               Sign In
             </button>
@@ -726,25 +874,25 @@ export default function App() {
         </div>
       </header>
 
-      {/* DESKTOP HEADER */}
-      <header className="hidden md:flex sticky top-0 z-50 bg-black/80 backdrop-blur-3xl border-b border-[#FFD700]/30 shadow-[0_8px_32px_0_rgba(255,215,0,0.25)]">
+      {/* DESKTOP HEADER - FIXED POSITIONING FOR ALWAYS VISIBLE */}
+      <header className="hidden md:flex fixed top-0 left-0 right-0 z-[100] bg-black/98 backdrop-blur-3xl border-b border-purple-500/40 shadow-[0_8px_32px_0_rgba(168,85,247,0.4)]">
         <div className="max-w-7xl mx-auto px-8 w-full relative">
           {/* Animated glow line at bottom */}
-          <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#FFD700] to-transparent opacity-50 animate-pulse" />
+          <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-50 animate-pulse" />
           
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
             <div className="flex items-center gap-4">
               <div className="relative group/logo">
                 {/* Rotating outer ring */}
-                <div className="absolute inset-[-6px] bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF4500] rounded-2xl opacity-30 blur-xl group-hover/logo:opacity-60 transition-opacity animate-spin-slow" />
+                <div className="absolute inset-[-6px] bg-gradient-to-r from-purple-600 via-orange-500 to-cyan-500 rounded-2xl opacity-30 blur-xl group-hover/logo:opacity-60 transition-opacity animate-spin-slow" />
                 
                 {/* Pulsing glow */}
-                <div className="absolute inset-0 bg-gradient-to-r from-[#FFD700] to-[#FFA500] blur-2xl opacity-40 animate-pulse" />
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-500 via-orange-400 to-cyan-400 blur-2xl opacity-40 animate-pulse" />
                 
                 {/* Logo box */}
-                <div className="relative bg-gradient-to-br from-[#FFD700] via-[#FFA500] to-[#FF4500] p-2.5 rounded-2xl shadow-2xl transform group-hover/logo:scale-105 transition-all duration-300">
-                  <Film className="w-7 h-7 text-black" />
+                <div className="relative bg-gradient-to-br from-purple-600 via-orange-500 to-cyan-600 p-2.5 rounded-2xl shadow-2xl transform group-hover/logo:scale-105 transition-all duration-300">
+                  <Film className="w-7 h-7 text-white" />
                   {/* SECRET ADMIN SWITCH - Red dot with vibrating animation - 6 clicks to open */}
                   <div 
                     onClick={(e) => {
@@ -759,42 +907,79 @@ export default function App() {
               <div className="relative">
                 <div className="flex items-center gap-2 mb-1 relative">
                   {/* Title glow effect */}
-                  <div className="absolute inset-0 blur-xl bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF4500] opacity-20" />
+                  <div className="absolute inset-0 blur-xl bg-gradient-to-r from-purple-500 via-orange-400 to-cyan-400 opacity-30" />
                   
-                  <h1 className="relative text-3xl font-black bg-gradient-to-r from-[#FFD700] via-[#FFA500] to-[#FF4500] bg-clip-text text-transparent tracking-tight drop-shadow-[0_0_10px_rgba(255,215,0,0.3)]">
+                  <h1 className="relative text-3xl font-black bg-gradient-to-r from-purple-400 via-orange-400 to-cyan-400 bg-clip-text text-transparent tracking-tight drop-shadow-[0_0_20px_rgba(255,138,66,0.5)]">
                     THEE ARCHIVE
                   </h1>
                 </div>
                 <p className="text-[10px] font-bold text-gray-400 tracking-wider flex items-center gap-1">
-                  <span className="inline-block w-1.5 h-1.5 bg-[#FFD700] rounded-full animate-pulse" />
+                  <span className="inline-block w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" />
                   ULTIMATE ENTERTAINMENT HUB 🎬
                 </p>
               </div>
             </div>
 
-            {/* Auth / Profile Button */}
-            {currentUser ? (
+            {/* Desktop GM Feed Button + Auth / Profile Button */}
+            <div className="flex items-center gap-3">
+              {/* GM FEED BUTTON - Desktop Only */}
+              <button
+                onClick={() => setActiveBottomTab('browse')}
+                className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 via-orange-500 to-pink-500 hover:shadow-lg hover:shadow-orange-500/50 transition-all group"
+              >
+                <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center">
+                  <span className="text-sm font-black text-white">GM</span>
+                </div>
+                <span className="font-black text-white text-sm">GREAT MOMENTS</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-white/20 text-white font-bold animate-pulse">HOT</span>
+              </button>
+
+              {currentUser ? (
               <>
                 <button
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
-                  className="w-12 h-12 rounded-full bg-gradient-to-br from-[#FFD700] to-[#FF4500] flex items-center justify-center hover:shadow-lg hover:shadow-[#FFD700]/50 transition-all relative z-50"
+                  className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center hover:shadow-lg hover:shadow-purple-500/50 transition-all relative z-50"
                 >
-                  <User className="w-6 h-6 text-black" />
+                  <User className="w-6 h-6 text-white" />
                 </button>
                 
-                {/* Profile Dropdown Menu - Fixed to top-right corner */}
+                {/* Profile Dropdown Menu - Fixed to top-right corner - DESKTOP ONLY */}
                 {showProfileMenu && (
                   <>
                     {/* Invisible backdrop to close menu */}
                     <div 
-                      className="fixed inset-0 z-[60]" 
+                      className="fixed inset-0 z-[95]" 
                       onClick={() => setShowProfileMenu(false)}
                     />
-                    <div className="fixed top-20 right-8 w-64 bg-black/95 backdrop-blur-xl border border-[#FFD700]/20 rounded-xl shadow-2xl overflow-hidden z-[70]">
+                    <div className="hidden md:block fixed top-20 right-8 w-64 bg-black/95 backdrop-blur-xl border border-purple-500/20 rounded-xl shadow-2xl shadow-purple-500/20 overflow-hidden z-[98]">
                       <div className="p-4 border-b border-white/10">
                         <p className="text-sm font-black text-white">{currentUser.name}</p>
                         <p className="text-xs text-gray-400">{currentUser.email}</p>
                       </div>
+                      <button
+                        onClick={() => {
+                          setShowBrowseAllCategories(true);
+                          setShowProfileMenu(false);
+                          setActiveBottomTab('home');
+                        }}
+                        className="w-full px-4 py-3 text-left hover:bg-white/10 transition-all text-white flex items-center gap-2"
+                      >
+                        <Globe className="w-4 h-4 text-purple-400" />
+                        <span>Browse All Categories</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActiveBottomTab('browse');
+                          setShowProfileMenu(false);
+                        }}
+                        className="w-full px-4 py-3 text-left hover:bg-white/10 transition-all text-white flex items-center gap-2"
+                      >
+                        <div className="w-4 h-4 rounded bg-gradient-to-br from-purple-600 via-orange-500 to-pink-500 flex items-center justify-center">
+                          <span className="text-[8px] font-black text-white">GM</span>
+                        </div>
+                        <span>Great Moments</span>
+                        <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 font-bold">HOT</span>
+                      </button>
                       <button
                         onClick={() => {
                           setShowWatchHistoryScreen(true);
@@ -803,7 +988,7 @@ export default function App() {
                         }}
                         className="w-full px-4 py-3 text-left hover:bg-white/10 transition-all text-white flex items-center gap-2"
                       >
-                        <Clock className="w-4 h-4 text-[#FFD700]" />
+                        <Clock className="w-4 h-4 text-purple-400" />
                         <span>Watch History ({watchHistory.length})</span>
                       </button>
                       <button
@@ -833,17 +1018,18 @@ export default function App() {
             ) : (
               <button
                 onClick={() => setShowAuthModal(true)}
-                className="px-6 py-3 bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black font-black rounded-xl hover:shadow-lg hover:shadow-[#FFD700]/50 transition-all"
+                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black rounded-xl hover:shadow-lg hover:shadow-purple-500/50 transition-all"
               >
                 Sign In
               </button>
             )}
+            </div>
           </div>
         </div>
       </header>
 
-      {/* MAIN CONTENT */}
-      <main className="pb-28">
+      {/* MAIN CONTENT - ADD PADDING TOP FOR FIXED HEADER */}
+      <main className="pt-[60px] md:pt-[80px] pb-28">
         {/* HOME TAB */}
         {activeBottomTab === 'home' && (
           <>
@@ -927,7 +1113,7 @@ export default function App() {
                               onClick={() => setHeroIndex(index)}
                               className={`h-2 rounded-full transition-all duration-500 ${
                                 index === heroIndex 
-                                  ? 'bg-gradient-to-r from-[#FFD700] to-[#FFA500] w-8 shadow-2xl shadow-[#FFD700]/60' 
+                                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 w-8 shadow-2xl shadow-purple-500/60' 
                                   : 'bg-white/30 w-2 hover:bg-white/50 hover:w-4'
                               }`}
                             />
@@ -946,12 +1132,12 @@ export default function App() {
                             <div className="flex flex-wrap items-center gap-3 mb-6">
                               <span className="glass-card px-4 py-2 rounded-xl font-black text-sm flex items-center gap-2">
                                 <span className={`w-2 h-2 rounded-full ${
-                                  heroMovies[heroIndex].ageRating === '18+' ? 'bg-red-500' : 'bg-[#FFD700]'
+                                  heroMovies[heroIndex].ageRating === '18+' ? 'bg-red-500' : 'bg-purple-500'
                                 } animate-pulse`}></span>
                                 <span className="text-white">{heroMovies[heroIndex].ageRating || 'PG'}</span>
                               </span>
                               <span className="glass-card px-4 py-2 rounded-xl">
-                                <span className="text-[#FFD700] font-black text-sm">{heroMovies[heroIndex].year}</span>
+                                <span className="text-purple-400 font-black text-sm">{heroMovies[heroIndex].year}</span>
                               </span>
                               <span className="glass-card px-4 py-2 rounded-xl">
                                 <span className="text-gray-300 font-bold text-sm">{heroMovies[heroIndex].genre}</span>
@@ -976,11 +1162,11 @@ export default function App() {
                                 className="relative group modern-button"
                               >
                                 {/* 3D Shadow Layers */}
-                                <div className="absolute inset-0 bg-gradient-to-b from-[#FF6B00] to-[#FF4500] rounded-2xl transform translate-y-2 group-hover:translate-y-3 transition-transform" />
-                                <div className="absolute inset-0 bg-gradient-to-b from-[#FFA500] to-[#FF6B00] rounded-2xl transform translate-y-1 group-hover:translate-y-1.5 transition-transform" />
+                                <div className="absolute inset-0 bg-gradient-to-r from-purple-700 via-orange-700 to-cyan-700 rounded-2xl transform translate-y-2 group-hover:translate-y-3 transition-transform" />
+                                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-orange-600 to-cyan-600 rounded-2xl transform translate-y-1 group-hover:translate-y-1.5 transition-transform" />
                                 
                                 {/* Main Button */}
-                                <div className="relative px-8 py-4 bg-gradient-to-b from-[#FFD700] via-[#FFA500] to-[#FF8C00] rounded-2xl font-black text-black text-base transform transition-all group-hover:translate-y-0.5 group-hover:shadow-2xl group-hover:shadow-[#FFD700]/60 flex items-center gap-3 border border-[#FFD700]/30">
+                                <div className="relative px-8 py-4 bg-gradient-to-r from-purple-600 via-orange-500 to-cyan-500 rounded-2xl font-black text-white text-base transform transition-all group-hover:translate-y-0.5 group-hover:shadow-2xl group-hover:shadow-orange-500/60 flex items-center gap-3 border border-orange-400/30">
                                   <div className="w-8 h-8 bg-black/20 rounded-full flex items-center justify-center">
                                     <div className="w-0 h-0 border-l-[10px] border-l-white border-t-[7px] border-t-transparent border-b-[7px] border-b-transparent ml-1" />
                                   </div>
@@ -1256,247 +1442,13 @@ export default function App() {
           </div>
         )}
 
-        {/* BROWSE TAB - All Categories */}
+        {/* GM FEED TAB (BROWSE) - Great Moments */}
         {activeBottomTab === 'browse' && (
-          <div className="min-h-screen bg-gradient-to-b from-gray-900 via-black to-black pb-24">
-            {/* Browse Header */}
-            <div className="sticky top-0 z-40 glass-card backdrop-blur-strong border-b border-[#FFD700]/30">
-              <div className="px-4 py-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-12 h-12 bg-gradient-to-br from-[#FFD700] to-[#FFA500] rounded-full flex items-center justify-center">
-                    <Globe className="w-6 h-6 text-black" strokeWidth={2.5} />
-                  </div>
-                  <h1 className="text-3xl font-black gradient-gold neon-glow">
-                    Browse All
-                  </h1>
-                </div>
-                <p className="text-gray-400 text-sm font-medium">Explore our complete entertainment library</p>
-              </div>
-            </div>
-
-            {/* Category Grid */}
-            <div className="px-4 py-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {/* All Movies */}
-              <button
-                onClick={() => {
-                  setViewAllTitle('All Movies');
-                  setViewAllEmoji('🎬');
-                  setViewAllMovies(groupSeriesEpisodes(movies.filter(m => m.type !== 'series' && m.category !== 'music' && m.ageRating !== '18+')));
-                  setShowViewAllScreen(true);
-                }}
-                className="glass-card glass-card-hover rounded-2xl p-6 text-left group relative overflow-hidden slide-in-up"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-[#FFD700]/10 to-[#FFA500]/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#FFD700]/20 to-[#FFA500]/20 flex items-center justify-center mb-3 float-animation">
-                    <Clapperboard className="w-6 h-6 text-[#FFD700]" strokeWidth={2} />
-                  </div>
-                  <h3 className="text-lg font-black text-white mb-1">All Movies</h3>
-                  <p className="text-sm text-gray-400">
-                    {movies.filter(m => m.type !== 'series' && m.category !== 'music' && m.ageRating !== '18+').length} movies
-                  </p>
-                </div>
-              </button>
-
-              {/* Series */}
-              <button
-                onClick={() => {
-                  setViewAllTitle('Series');
-                  setViewAllEmoji('📺');
-                  setViewAllMovies(groupSeriesEpisodes(movies.filter(m => m.type === 'series' && m.ageRating !== '18+')));
-                  setShowViewAllScreen(true);
-                }}
-                className="glass-card glass-card-hover rounded-2xl p-6 text-left group relative overflow-hidden slide-in-up"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-600/10 to-pink-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600/20 to-pink-600/20 flex items-center justify-center mb-3 float-animation">
-                    <Tv className="w-6 h-6 text-purple-400" strokeWidth={2} />
-                  </div>
-                  <h3 className="text-lg font-black text-white mb-1">Series</h3>
-                  <p className="text-sm text-gray-400">
-                    {groupSeriesEpisodes(movies.filter(m => m.type === 'series' && m.ageRating !== '18+')).length} series
-                  </p>
-                </div>
-              </button>
-
-              {/* Action */}
-              <button
-                onClick={() => {
-                  setViewAllTitle('Action');
-                  setViewAllEmoji('💥');
-                  setViewAllMovies(movies.filter(m => (m.genre?.toLowerCase().includes('action') || m.section?.toLowerCase().includes('action')) && m.ageRating !== '18+' && m.category !== 'music'));
-                  setShowViewAllScreen(true);
-                }}
-                className="glass-card glass-card-hover rounded-2xl p-6 text-left group relative overflow-hidden slide-in-up"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-red-600/10 to-orange-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-600/20 to-orange-600/20 flex items-center justify-center mb-3 float-animation">
-                    <Video className="w-6 h-6 text-red-400" strokeWidth={2} />
-                  </div>
-                  <h3 className="text-lg font-black text-white mb-1">Action</h3>
-                  <p className="text-sm text-gray-400">
-                    {movies.filter(m => (m.genre?.toLowerCase().includes('action') || m.section?.toLowerCase().includes('action')) && m.ageRating !== '18+' && m.category !== 'music').length} movies
-                  </p>
-                </div>
-              </button>
-
-              {/* Horror */}
-              <button
-                onClick={() => {
-                  setViewAllTitle('Horror');
-                  setViewAllEmoji('👻');
-                  setViewAllMovies(movies.filter(m => (m.genre?.toLowerCase().includes('horror') || m.section?.toLowerCase().includes('horror')) && m.ageRating !== '18+' && m.category !== 'music'));
-                  setShowViewAllScreen(true);
-                }}
-                className="glass-card glass-card-hover rounded-2xl p-6 text-left group relative overflow-hidden slide-in-up"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-red-600/10 to-purple-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-600/20 to-purple-600/20 flex items-center justify-center mb-3 float-animation">
-                    <Skull className="w-6 h-6 text-red-400" strokeWidth={2} />
-                  </div>
-                  <h3 className="text-lg font-black text-white mb-1">Horror</h3>
-                  <p className="text-sm text-gray-400">
-                    {movies.filter(m => (m.genre?.toLowerCase().includes('horror') || m.section?.toLowerCase().includes('horror')) && m.ageRating !== '18+' && m.category !== 'music').length} items
-                  </p>
-                </div>
-              </button>
-
-              {/* Comedy */}
-              <button
-                onClick={() => {
-                  setViewAllTitle('Comedy');
-                  setViewAllEmoji('😂');
-                  setViewAllMovies(movies.filter(m => (m.genre?.toLowerCase().includes('comedy') || m.section?.toLowerCase().includes('comedy')) && m.ageRating !== '18+' && m.category !== 'music'));
-                  setShowViewAllScreen(true);
-                }}
-                className="glass-card glass-card-hover rounded-2xl p-6 text-left group relative overflow-hidden slide-in-up"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-yellow-600/10 to-orange-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-600/20 to-orange-600/20 flex items-center justify-center mb-3 float-animation">
-                    <Laugh className="w-6 h-6 text-yellow-400" strokeWidth={2} />
-                  </div>
-                  <h3 className="text-lg font-black text-white mb-1">Comedy</h3>
-                  <p className="text-sm text-gray-400">
-                    {movies.filter(m => (m.genre?.toLowerCase().includes('comedy') || m.section?.toLowerCase().includes('comedy')) && m.ageRating !== '18+' && m.category !== 'music').length} laughs
-                  </p>
-                </div>
-              </button>
-
-              {/* Sci-Fi */}
-              <button
-                onClick={() => {
-                  setViewAllTitle('Sci-Fi');
-                  setViewAllEmoji('🚀');
-                  setViewAllMovies(movies.filter(m => (m.genre?.toLowerCase().includes('sci-fi') || m.genre?.toLowerCase().includes('science fiction') || m.section?.toLowerCase().includes('sci-fi')) && m.ageRating !== '18+' && m.category !== 'music'));
-                  setShowViewAllScreen(true);
-                }}
-                className="glass-card glass-card-hover rounded-2xl p-6 text-left group relative overflow-hidden slide-in-up"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/10 to-purple-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-600/20 to-purple-600/20 flex items-center justify-center mb-3 float-animation">
-                    <Rocket className="w-6 h-6 text-indigo-400" strokeWidth={2} />
-                  </div>
-                  <h3 className="text-lg font-black text-white mb-1">Sci-Fi</h3>
-                  <p className="text-sm text-gray-400">
-                    {movies.filter(m => (m.genre?.toLowerCase().includes('sci-fi') || m.genre?.toLowerCase().includes('science fiction') || m.section?.toLowerCase().includes('sci-fi')) && m.ageRating !== '18+' && m.category !== 'music').length} films
-                  </p>
-                </div>
-              </button>
-
-              {/* Uganda Soaps */}
-              <button
-                onClick={() => {
-                  setViewAllTitle('Uganda Soaps & Drama');
-                  setViewAllEmoji('🇺🇬');
-                  setViewAllMovies(movies.filter(m => (m.genre?.toLowerCase().includes('uganda') || m.section?.toLowerCase().includes('uganda')) && m.ageRating !== '18+' && m.category !== 'music'));
-                  setShowViewAllScreen(true);
-                }}
-                className="glass-card glass-card-hover rounded-2xl p-6 text-left group relative overflow-hidden slide-in-up"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-yellow-600/10 to-red-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-600/20 to-red-600/20 flex items-center justify-center mb-3 float-animation">
-                    <Flag className="w-6 h-6 text-yellow-400" strokeWidth={2} />
-                  </div>
-                  <h3 className="text-lg font-black text-white mb-1">Uganda Drama</h3>
-                  <p className="text-sm text-gray-400">
-                    {movies.filter(m => (m.genre?.toLowerCase().includes('uganda') || m.section?.toLowerCase().includes('uganda')) && m.ageRating !== '18+' && m.category !== 'music').length} shows
-                  </p>
-                </div>
-              </button>
-
-              {/* Nigerian Drama */}
-              <button
-                onClick={() => {
-                  setViewAllTitle('Nigerian Drama');
-                  setViewAllEmoji('🇳🇬');
-                  setViewAllMovies(movies.filter(m => m.genre?.toLowerCase().includes('nigerian') || m.section?.toLowerCase().includes('nigerian') || m.genre?.toLowerCase().includes('nollywood')));
-                  setShowViewAllScreen(true);
-                }}
-                className="glass-card glass-card-hover rounded-2xl p-6 text-left group relative overflow-hidden slide-in-up"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-green-600/10 to-emerald-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-600/20 to-emerald-600/20 flex items-center justify-center mb-3 float-animation">
-                    <Film className="w-6 h-6 text-green-400" strokeWidth={2} />
-                  </div>
-                  <h3 className="text-lg font-black text-white mb-1">Nigerian Drama</h3>
-                  <p className="text-sm text-gray-400">
-                    {movies.filter(m => m.genre?.toLowerCase().includes('nigerian') || m.section?.toLowerCase().includes('nigerian') || m.genre?.toLowerCase().includes('nollywood')).length} movies
-                  </p>
-                </div>
-              </button>
-
-              {/* High School */}
-              <button
-                onClick={() => {
-                  setViewAllTitle('High School');
-                  setViewAllEmoji('🎓');
-                  setViewAllMovies(movies.filter(m => m.genre?.toLowerCase().includes('high school') || m.section?.toLowerCase().includes('high school') || m.genre?.toLowerCase().includes('teen')));
-                  setShowViewAllScreen(true);
-                }}
-                className="glass-card glass-card-hover rounded-2xl p-6 text-left group relative overflow-hidden slide-in-up"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-cyan-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600/20 to-cyan-600/20 flex items-center justify-center mb-3 float-animation">
-                    <GraduationCap className="w-6 h-6 text-blue-400" strokeWidth={2} />
-                  </div>
-                  <h3 className="text-lg font-black text-white mb-1">High School</h3>
-                  <p className="text-sm text-gray-400">
-                    {movies.filter(m => m.genre?.toLowerCase().includes('high school') || m.section?.toLowerCase().includes('high school') || m.genre?.toLowerCase().includes('teen')).length} shows
-                  </p>
-                </div>
-              </button>
-
-              {/* Music */}
-              <button
-                onClick={() => {
-                  setViewAllTitle('Music');
-                  setViewAllEmoji('🎵');
-                  setViewAllMovies(movies.filter(m => m.category === 'music'));
-                  setShowViewAllScreen(true);
-                }}
-                className="glass-card glass-card-hover rounded-2xl p-6 text-left group relative overflow-hidden slide-in-up"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-green-600/10 to-emerald-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-600/20 to-emerald-600/20 flex items-center justify-center mb-3 float-animation">
-                    <Headphones className="w-6 h-6 text-green-400" strokeWidth={2} />
-                  </div>
-                  <h3 className="text-lg font-black text-white mb-1">Music</h3>
-                  <p className="text-sm text-gray-400">
-                    {movies.filter(m => m.category === 'music').length} tracks
-                  </p>
-                </div>
-              </button>
-            </div>
-          </div>
+          <WFeed
+            currentUser={currentUser}
+            accessToken={currentUser?.accessToken || ''}
+            onBack={() => setActiveBottomTab('home')}
+          />
         )}
 
         {/* KIDO TAB */}
@@ -1507,6 +1459,10 @@ export default function App() {
             onDownload={handleDownload}
             onMusicClick={handleMusicClick}
             onSeriesClick={handleSeriesClick}
+            onBack={() => {
+              setActiveBottomTab('home');
+              setActiveTopTab('trending');
+            }}
           />
         )}
 
@@ -1637,21 +1593,21 @@ export default function App() {
         />
       )}
 
-      {/* PROFILE MODAL (Mobile) */}
+      {/* PROFILE MODAL (Mobile ONLY - Don't show on desktop) */}
       {showProfileMenu && currentUser && (
         <>
-          {/* Backdrop to close */}
+          {/* Backdrop to close - MOBILE ONLY */}
           <div 
-            className="fixed inset-0 z-[60] bg-black/50" 
+            className="md:hidden fixed inset-0 z-[95] bg-black/50" 
             onClick={() => setShowProfileMenu(false)}
           />
           
-          {/* Profile Dropdown - Slides from right */}
-          <div className="fixed top-[60px] right-4 w-80 max-w-[calc(100vw-2rem)] bg-black/95 backdrop-blur-xl border border-[#FFD700]/20 rounded-2xl overflow-hidden z-[70] shadow-2xl">
+          {/* Profile Dropdown - Slides from right - MOBILE ONLY */}
+          <div className="md:hidden fixed top-[60px] right-4 w-80 max-w-[calc(100vw-2rem)] bg-black/95 backdrop-blur-xl border border-purple-500/20 rounded-2xl overflow-hidden z-[98] shadow-2xl shadow-purple-500/20">
             <div className="p-6 border-b border-white/10">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#FFD700] to-[#FF4500] flex items-center justify-center">
-                  <User className="w-8 h-8 text-black" />
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center">
+                  <User className="w-8 h-8 text-white" />
                 </div>
                 <div>
                   <p className="font-black text-white">{currentUser.name}</p>
@@ -1663,13 +1619,40 @@ export default function App() {
             <div className="p-2">
               <button
                 onClick={() => {
+                  setShowBrowseAllCategories(true);
+                  setShowProfileMenu(false);
+                }}
+                className="w-full px-4 py-4 text-left hover:bg-white/10 rounded-xl transition-all text-white flex items-center justify-between"
+              >
+                <span className="flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-purple-400" />
+                  <span>Browse All Categories</span>
+                </span>
+              </button>
+              <button
+                onClick={() => {
+                  setActiveBottomTab('browse');
+                  setShowProfileMenu(false);
+                }}
+                className="w-full px-4 py-4 text-left hover:bg-white/10 rounded-xl transition-all text-white flex items-center justify-between"
+              >
+                <span className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded bg-gradient-to-br from-purple-600 via-orange-500 to-pink-500 flex items-center justify-center">
+                    <span className="text-[8px] font-black text-white">GM</span>
+                  </div>
+                  <span>Great Moments</span>
+                </span>
+                <span className="text-xs px-2 py-1 rounded-full bg-orange-500/20 text-orange-400 font-bold">HOT</span>
+              </button>
+              <button
+                onClick={() => {
                   setShowWatchHistoryScreen(true);
                   setShowProfileMenu(false);
                 }}
                 className="w-full px-4 py-4 text-left hover:bg-white/10 rounded-xl transition-all text-white flex items-center justify-between"
               >
                 <span className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-[#FFD700]" />
+                  <Clock className="w-4 h-4 text-purple-400" />
                   <span>Watch History</span>
                 </span>
                 <span className="text-sm bg-white/10 px-2 py-1 rounded">{watchHistory.length}</span>
@@ -1801,6 +1784,20 @@ export default function App() {
         </div>
       )}
 
+      {/* BROWSE ALL CATEGORIES SCREEN */}
+      {showBrowseAllCategories && (
+        <BrowseAllCategoriesScreen
+          onClose={() => setShowBrowseAllCategories(false)}
+          onCategorySelect={(title, emoji, filterFn) => {
+            setViewAllTitle(title);
+            setViewAllEmoji(emoji);
+            setViewAllMovies(groupSeriesEpisodes(movies.filter(filterFn)));
+            setShowViewAllScreen(true);
+          }}
+          movies={movies}
+        />
+      )}
+
       {/* MUSIC PLAYER - Always mounted for background playback */}
       {showMusicPlayer && currentTrack && (
         <MusicPlayer
@@ -1880,7 +1877,7 @@ export default function App() {
       )}
 
       {/* FOOTER - Only show on main screens (not on player/modals) */}
-      {!showPlayer && !showSeriesDetail && !showViewAllScreen && !showDownloadsScreen && !showWatchHistoryScreen && !showMovieDetail && (
+      {!showPlayer && !showSeriesDetail && !showViewAllScreen && !showDownloadsScreen && !showWatchHistoryScreen && !showMovieDetail && !showBrowseAllCategories && (
         <Footer
           onNavigateToPrivacy={() => setLegalPage('privacy')}
           onNavigateToTerms={() => setLegalPage('terms')}

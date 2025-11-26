@@ -16,18 +16,18 @@ export function SearchBar({ value, onChange, onSearch, placeholder = "Search mov
   };
 
   return (
-    <div className="sticky top-0 z-50 px-4 py-4 bg-black/95 backdrop-blur-xl border-b border-white/10">
+    <div className="sticky top-[60px] md:top-[80px] z-[90] px-4 py-4 bg-black/95 backdrop-blur-xl border-b border-cyan-500/20">
       <div className="flex items-center gap-3">
         {/* Search Input */}
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400" />
           <input
             type="text"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder={placeholder}
-            className="w-full bg-white/10 border border-white/20 rounded-xl pl-11 pr-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FFD700]/50 focus:border-[#FFD700]/50 transition-all backdrop-blur-md"
+            className="w-full bg-white/10 border border-cyan-500/30 rounded-xl pl-11 pr-4 py-3 text-white placeholder-cyan-300/50 focus:outline-none focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 transition-all backdrop-blur-md shadow-lg shadow-cyan-500/10 focus:shadow-orange-500/30"
           />
         </div>
 
@@ -35,7 +35,7 @@ export function SearchBar({ value, onChange, onSearch, placeholder = "Search mov
         {value && onSearch && (
           <button
             onClick={onSearch}
-            className="px-4 py-3 bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black font-black text-sm rounded-xl hover:shadow-lg hover:shadow-[#FFD700]/50 transition-all"
+            className="px-4 py-3 bg-gradient-to-r from-orange-500 via-purple-600 to-cyan-500 text-white font-black text-sm rounded-xl hover:shadow-lg hover:shadow-orange-500/50 transition-all hover:scale-105"
           >
             Search
           </button>

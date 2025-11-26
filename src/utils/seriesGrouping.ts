@@ -1,5 +1,43 @@
 // Utility to group series episodes into single cards
-import type { Movie, Episode } from '../types/movie';
+
+export interface Movie {
+  id: string;
+  title: string;
+  description: string;
+  videoUrl: string;
+  thumbnailUrl: string;
+  genre: string;
+  year: string;
+  type: string;
+  fileSize?: string;
+  category?: 'movie' | 'series' | 'music';
+  ageRating?: 'G' | 'PG' | 'PG-13' | 'R' | '18+' | 'Kids';
+  section?: string;
+  uploadedAt?: string;
+  episodes?: Episode[];
+  rating?: string;
+  // For series organization
+  seriesTitle?: string;
+  seasonNumber?: number;
+  episodeNumber?: number;
+}
+
+export interface Episode {
+  id: string;
+  episodeNumber: number;
+  seasonNumber: number;
+  title: string;
+  description: string;
+  videoUrl: string;
+  thumbnailUrl: string;
+  duration?: string;
+  releaseDate?: string;
+}
+
+export interface GroupedSeries extends Movie {
+  episodes: Episode[];
+  type: 'series';
+}
 
 /**
  * Extract series title from a full episode title

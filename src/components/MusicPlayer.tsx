@@ -160,7 +160,7 @@ export function MusicPlayer({
       {/* Only show UI when isVisible is true */}
       {isVisible && (
         <>
-          {/* Video Controls Overlay */}
+          {/* Video Controls Overlay - IMPROVED: More visible and prominent */}
           {isUsingVideo && showVideoWindow && (
             <div
               className={
@@ -169,26 +169,31 @@ export function MusicPlayer({
                   : "fixed bottom-[calc(6rem+240px)] right-4 z-[60] flex gap-2"
               }
             >
+              {/* Hide Video Button - Red and prominent */}
               <button
                 onClick={() => setShowVideoWindow(false)}
-                className="p-2 bg-red-500/80 hover:bg-red-500 text-white rounded-full transition-all shadow-lg"
+                className="p-3 bg-red-600 hover:bg-red-700 text-white rounded-full transition-all shadow-2xl hover:scale-110 backdrop-blur-sm border-2 border-white/20"
                 title="Hide Video (Audio Only)"
               >
-                <EyeOff className={isExpanded ? "w-6 h-6" : "w-4 h-4"} />
+                <EyeOff className={isExpanded ? "w-6 h-6" : "w-5 h-5"} />
               </button>
+              
+              {/* Expand/Minimize Button - Golden and prominent */}
               {isExpanded ? (
                 <button
                   onClick={() => setIsExpanded(false)}
-                  className="p-2 bg-black/80 hover:bg-black text-white rounded-full"
+                  className="p-3 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 text-white rounded-full shadow-2xl hover:scale-110 transition-all backdrop-blur-sm border-2 border-white/20"
+                  title="Minimize Video"
                 >
                   <Minimize2 className="w-6 h-6" />
                 </button>
               ) : (
                 <button
                   onClick={() => setIsExpanded(true)}
-                  className="p-2 bg-black/60 hover:bg-black/80 text-white rounded-full transition-all"
+                  className="p-3 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 text-white rounded-full shadow-2xl hover:scale-110 transition-all backdrop-blur-sm border-2 border-white/20"
+                  title="Maximize Video"
                 >
-                  <Maximize2 className="w-4 h-4" />
+                  <Maximize2 className="w-5 h-5" />
                 </button>
               )}
             </div>
@@ -297,7 +302,7 @@ export function MusicPlayer({
 
                 <button
                   onClick={onPlayPause}
-                  className="p-3 bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black rounded-full hover:scale-110 transition-all shadow-lg shadow-[#FFD700]/50"
+                  className="p-3 bg-gradient-to-r from-purple-600 to-cyan-600 text-white rounded-full hover:scale-110 transition-all shadow-lg shadow-purple-500/50"
                 >
                   {isPlaying ? (
                     <Pause className="w-6 h-6 fill-current" />

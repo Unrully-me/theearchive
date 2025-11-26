@@ -211,9 +211,9 @@ export default function AdminPortal({ onAuthenticated, onNavigateToMovieAdmin }:
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-900 via-black to-black flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl rounded-2xl p-8 border border-[#FFD700]/20">
+        <div className="max-w-md w-full bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl rounded-2xl p-8 border border-orange-500/30 shadow-2xl shadow-orange-500/20">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-black bg-gradient-to-r from-[#FFD700] to-[#FF4500] bg-clip-text text-transparent mb-2">
+            <h1 className="text-3xl font-black bg-gradient-to-r from-orange-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent mb-2">
               🔐 ADMIN PORTAL
             </h1>
             <p className="text-gray-400 text-sm">THEE ARCHIVE Management System</p>
@@ -226,11 +226,11 @@ export default function AdminPortal({ onAuthenticated, onNavigateToMovieAdmin }:
               onChange={(e) => setPassword(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
               placeholder="Enter admin password"
-              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FFD700]/50 transition-all"
+              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 transition-all"
             />
             <button
               onClick={handleLogin}
-              className="w-full bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black font-black py-3 rounded-xl hover:shadow-lg hover:shadow-[#FFD700]/50 transition-all"
+              className="w-full bg-gradient-to-r from-orange-500 via-purple-600 to-cyan-500 text-white font-black py-3 rounded-xl hover:shadow-lg hover:shadow-orange-500/50 transition-all"
             >
               LOGIN
             </button>
@@ -263,7 +263,7 @@ export default function AdminPortal({ onAuthenticated, onNavigateToMovieAdmin }:
                 onClick={() => { setActiveTab('dashboard'); setSelectedUser(null); }}
                 className={`px-4 py-2 rounded-lg font-bold transition-all ${
                   activeTab === 'dashboard'
-                    ? 'bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black'
+                    ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/50'
                     : 'bg-white/10 text-white hover:bg-white/20'
                 }`}
               >
@@ -274,7 +274,7 @@ export default function AdminPortal({ onAuthenticated, onNavigateToMovieAdmin }:
                 onClick={() => { setActiveTab('users'); setSelectedUser(null); }}
                 className={`px-4 py-2 rounded-lg font-bold transition-all ${
                   activeTab === 'users'
-                    ? 'bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black'
+                    ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/50'
                     : 'bg-white/10 text-white hover:bg-white/20'
                 }`}
               >
@@ -285,7 +285,7 @@ export default function AdminPortal({ onAuthenticated, onNavigateToMovieAdmin }:
                 onClick={() => setActiveTab('reports')}
                 className={`px-4 py-2 rounded-lg font-bold transition-all ${
                   activeTab === 'reports'
-                    ? 'bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black'
+                    ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/50'
                     : 'bg-white/10 text-white hover:bg-white/20'
                 }`}
               >
@@ -296,18 +296,18 @@ export default function AdminPortal({ onAuthenticated, onNavigateToMovieAdmin }:
                 onClick={() => setActiveTab('ads')}
                 className={`px-4 py-2 rounded-lg font-bold transition-all ${
                   activeTab === 'ads'
-                    ? 'bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black'
+                    ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/50'
                     : 'bg-white/10 text-white hover:bg-white/20'
                 }`}
               >
                 <DollarSign className="w-4 h-4 inline mr-2" />
-                Ads
+                Ad Manager
               </button>
               <button
                 onClick={() => setActiveTab('settings')}
                 className={`px-4 py-2 rounded-lg font-bold transition-all ${
                   activeTab === 'settings'
-                    ? 'bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black'
+                    ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/50'
                     : 'bg-white/10 text-white hover:bg-white/20'
                 }`}
               >

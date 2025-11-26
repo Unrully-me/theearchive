@@ -737,4 +737,235 @@ app.put("/make-server-4d451974/ad-settings", async (c) => {
   }
 });
 
+// ===== DOWNLOAD PROXY ROUTE =====
+// Proxy downloads to handle CORS issues with external video URLs
+app.get("/make-server-4d451974/download-proxy", async (c) => {
+  try {
+    const videoUrl = c.req.query("url");
+    const filename = c.req.query("filename") || "video.mp4";
+    
+    if (!videoUrl) {
+      return c.json({ success: false, error: "URL parameter required" }, 400);
+    }
+    
+    console.log("📥 Proxying download for URL:", videoUrl);
+    console.log("📥 Filename:", filename);
+    
+    // Fetch the video from the external URL
+    const response = await fetch(videoUrl);
+    
+    if (!response.ok) {
+      console.error(`Failed to fetch video: ${response.status} ${response.statusText}`);
+      return c.json({ 
+        success: false, 
+        error: `Failed to fetch video: ${response.status} ${response.statusText}` 
+      }, response.status);
+    }
+    
+    // Get the content type from the source
+    const contentType = response.headers.get("Content-Type") || "video/mp4";
+    const contentLength = response.headers.get("Content-Length");
+    
+    console.log("✅ Successfully fetched video, streaming to client...");
+    console.log("Content-Type:", contentType);
+    console.log("Content-Length:", contentLength);
+    
+    // Stream the response directly to avoid memory issues with large files
+    return new Response(response.body, {
+      headers: {
+        "Content-Type": contentType,
+        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Length": contentLength || "",
+        "Cache-Control": "no-cache",
+        "Access-Control-Allow-Origin": "*",
+      },
+    });
+  } catch (error) {
+    console.error("❌ Download proxy error:", error);
+    return c.json({ 
+      success: false, 
+      error: String(error) 
+    }, 500);
+  }
+});
+
+// ========== GM FEED ENDPOINTS (Great Moments - TikTok-style temporary content) ==========
+
+// Get all GM content (filter by 72 hours)
+app.get("/make-server-4d451974/w-feed", async (c) => {
+  try {
+    console.log("📱 Fetching GM feed content...");
+    const wContentData = await kv.getByPrefix("w:");
+    const wContent = Array.isArray(wContentData) ? wContentData.map(item => item.value || item) : [];
+    
+    // Filter content that's less than 72 hours old
+    const now = Date.now();
+    const validContent = wContent.filter(item => {
+      const uploadTime = new Date(item.uploadedAt).getTime();
+      const hoursSinceUpload = (now - uploadTime) / (1000 * 60 * 60);
+      return hoursSinceUpload < 72;
+    });
+    
+    // Sort by newest first
+    validContent.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+    
+    console.log(`✅ Found ${validContent.length} valid GM content items (within 72 hours)`);
+    return c.json({ success: true, content: validContent });
+  } catch (error) {
+    console.log(`❌ Error fetching GM feed: ${error}`);
+    return c.json({ success: false, error: String(error), content: [] }, 500);
+  }
+});
+
+// Upload W content
+app.post("/make-server-4d451974/w-feed/upload", async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+    
+    if (!user) {
+      console.log("❌ Unauthorized W upload attempt");
+      return c.json({ success: false, error: 'Unauthorized' }, 401);
+    }
+
+    const formData = await c.req.formData();
+    const file = formData.get('file') as File;
+    const caption = formData.get('caption') as string;
+    const contentType = formData.get('contentType') as string; // 'video' or 'image'
+    
+    if (!file) {
+      return c.json({ success: false, error: 'No file provided' }, 400);
+    }
+
+    console.log(`📱 User ${user.email} uploading W content: ${file.name}`);
+
+    // Create bucket if it doesn't exist
+    const bucketName = 'make-4d451974-w-content';
+    const { data: buckets } = await supabase.storage.listBuckets();
+    const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
+    
+    if (!bucketExists) {
+      console.log("🪣 Creating W content bucket...");
+      await supabase.storage.createBucket(bucketName, { public: false });
+    }
+
+    // Upload file to Supabase Storage
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+    const fileBuffer = await file.arrayBuffer();
+    
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from(bucketName)
+      .upload(fileName, fileBuffer, {
+        contentType: file.type,
+        upsert: false
+      });
+
+    if (uploadError) {
+      console.log(`❌ Upload error: ${uploadError.message}`);
+      return c.json({ success: false, error: uploadError.message }, 500);
+    }
+
+    // Get signed URL (valid for 72 hours + buffer)
+    const { data: urlData } = await supabase.storage
+      .from(bucketName)
+      .createSignedUrl(fileName, 72 * 60 * 60 + 3600); // 72 hours + 1 hour buffer
+
+    // Store metadata in KV store
+    const wId = `w:${Date.now()}_${user.id}`;
+    const wData = {
+      id: wId,
+      userId: user.id,
+      userEmail: user.email,
+      caption: caption || '',
+      contentType: contentType || 'video',
+      fileUrl: urlData?.signedUrl || '',
+      fileName: fileName,
+      uploadedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(), // 72 hours from now
+    };
+
+    await kv.set(wId, wData);
+    console.log(`✅ W content uploaded successfully: ${wId}`);
+
+    return c.json({ success: true, content: wData });
+  } catch (error) {
+    console.log(`❌ Error uploading W content: ${error}`);
+    return c.json({ success: false, error: String(error) }, 500);
+  }
+});
+
+// Delete W content (user deletes their own content)
+app.delete("/make-server-4d451974/w-feed/:id", async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+    
+    if (!user) {
+      return c.json({ success: false, error: 'Unauthorized' }, 401);
+    }
+
+    const wId = c.req.param('id');
+    console.log(`🗑️ User ${user.email} deleting W content: ${wId}`);
+
+    // Get content to verify ownership
+    const content = await kv.get(wId);
+    if (!content) {
+      return c.json({ success: false, error: 'Content not found' }, 404);
+    }
+
+    if (content.userId !== user.id) {
+      return c.json({ success: false, error: 'Not authorized to delete this content' }, 403);
+    }
+
+    // Delete from storage
+    const bucketName = 'make-4d451974-w-content';
+    await supabase.storage.from(bucketName).remove([content.fileName]);
+
+    // Delete from KV store
+    await kv.del(wId);
+    
+    console.log(`✅ W content deleted successfully: ${wId}`);
+    return c.json({ success: true });
+  } catch (error) {
+    console.log(`❌ Error deleting W content: ${error}`);
+    return c.json({ success: false, error: String(error) }, 500);
+  }
+});
+
+// Cleanup expired GM content (call this periodically)
+app.post("/make-server-4d451974/w-feed/cleanup", async (c) => {
+  try {
+    console.log("🧹 Starting GM feed cleanup...");
+    const wContentData = await kv.getByPrefix("w:");
+    const wContent = Array.isArray(wContentData) ? wContentData.map(item => item.value || item) : [];
+    
+    const now = Date.now();
+    const bucketName = 'make-4d451974-w-content';
+    let deletedCount = 0;
+
+    for (const item of wContent) {
+      const uploadTime = new Date(item.uploadedAt).getTime();
+      const hoursSinceUpload = (now - uploadTime) / (1000 * 60 * 60);
+      
+      if (hoursSinceUpload >= 72) {
+        console.log(`🗑️ Deleting expired W content: ${item.id} (${hoursSinceUpload.toFixed(1)} hours old)`);
+        
+        // Delete from storage
+        await supabase.storage.from(bucketName).remove([item.fileName]);
+        
+        // Delete from KV store
+        await kv.del(item.id);
+        deletedCount++;
+      }
+    }
+    
+    console.log(`✅ GM feed cleanup complete. Deleted ${deletedCount} expired items.`);
+    return c.json({ success: true, deletedCount });
+  } catch (error) {
+    console.log(`❌ Error during GM feed cleanup: ${error}`);
+    return c.json({ success: false, error: String(error) }, 500);
+  }
+});
+
 Deno.serve(app.fetch);

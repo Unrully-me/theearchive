@@ -55,14 +55,14 @@ export function AuthModal({ onClose, onAuthSuccess }: AuthModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-gradient-to-br from-gray-900 to-black border-2 border-[#FFD700] rounded-2xl p-8 max-w-md w-full shadow-2xl">
+      <div className="bg-gradient-to-br from-gray-900 to-black border-2 border-[#FF5722] rounded-2xl p-8 max-w-md w-full shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             {isSignUp ? (
-              <UserPlus className="w-8 h-8 text-[#FFD700]" />
+              <UserPlus className="w-8 h-8 text-[#FF5722]" />
             ) : (
-              <LogIn className="w-8 h-8 text-[#FFD700]" />
+              <LogIn className="w-8 h-8 text-[#FF5722]" />
             )}
             <h2 className="text-2xl font-black text-white">
               {isSignUp ? 'Create Account' : 'Welcome Back'}
@@ -90,7 +90,7 @@ export function AuthModal({ onClose, onAuthSuccess }: AuthModalProps) {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="John Doe"
                   required
-                  className="w-full bg-black/50 border border-gray-700 rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:border-[#FFD700] focus:outline-none transition-all"
+                  className="w-full bg-black/50 border border-gray-700 rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:border-[#FF5722] focus:outline-none transition-all"
                 />
               </div>
             </div>
@@ -107,7 +107,7 @@ export function AuthModal({ onClose, onAuthSuccess }: AuthModalProps) {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 required
-                className="w-full bg-black/50 border border-gray-700 rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:border-[#FFD700] focus:outline-none transition-all"
+                className="w-full bg-black/50 border border-gray-700 rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:border-[#FF5722] focus:outline-none transition-all"
               />
             </div>
           </div>
@@ -124,7 +124,7 @@ export function AuthModal({ onClose, onAuthSuccess }: AuthModalProps) {
                 placeholder="••••••••"
                 required
                 minLength={6}
-                className="w-full bg-black/50 border border-gray-700 rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:border-[#FFD700] focus:outline-none transition-all"
+                className="w-full bg-black/50 border border-gray-700 rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:border-[#FF5722] focus:outline-none transition-all"
               />
             </div>
           </div>
@@ -140,7 +140,7 @@ export function AuthModal({ onClose, onAuthSuccess }: AuthModalProps) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black font-black py-3 rounded-lg hover:scale-105 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-gradient-to-r from-[#FF5722] to-[#FF7043] text-black font-black py-3 rounded-lg hover:scale-105 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Please wait...' : isSignUp ? 'Create Account' : 'Sign In'}
           </button>
@@ -155,7 +155,7 @@ export function AuthModal({ onClose, onAuthSuccess }: AuthModalProps) {
                 setIsSignUp(!isSignUp);
                 setError('');
               }}
-              className="ml-2 text-[#FFD700] font-bold hover:underline"
+              className="ml-2 text-[#FF5722] font-bold hover:underline"
             >
               {isSignUp ? 'Sign In' : 'Sign Up'}
             </button>
