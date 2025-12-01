@@ -67,6 +67,27 @@ export function MovieShortsScreen({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
+  // Tracks whether the user manually toggled mute/unmute. If true, we should
+  // respect the user's preference and not override it during autoplay failures
+  // or when switching between shorts.
+  const [userSetMute, setUserSetMute] = useState(false);
+
+  // Persist user preference for shorts mute/unmute in localStorage so it survives
+  // navigation/back/refresh. Read existing preference on mount.
+  useEffect(() => {
+    try {
+      const pref = localStorage.getItem('shorts_isMuted');
+      const userSet = localStorage.getItem('shorts_userSetMute');
+      if (pref !== null) {
+        setIsMuted(pref === 'true');
+      }
+      if (userSet === 'true') {
+        setUserSetMute(true);
+      }
+    } catch (e) {
+      // ignore localStorage errors
+    }
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [liked, setLiked] = useState<Set<string>>(new Set());
@@ -127,10 +148,18 @@ export function MovieShortsScreen({
     if (currentVideo) {
       if (isPlaying) {
         currentVideo.play().catch(() => {
-          // Auto-play might be blocked, mute and try again
-          setIsMuted(true);
-          currentVideo.muted = true;
-          currentVideo.play().catch(() => {});
+          // Auto-play might be blocked. Only automatically mute when the
+          // user has NOT explicitly toggled mute. If the user already chose
+          // unmuted, we should not override that preference — the browser may
+          // block autoplay with sound but we won't change their choice.
+          if (!userSetMute) {
+            setIsMuted(true);
+            currentVideo.muted = true;
+            currentVideo.play().catch(() => {});
+          } else {
+            // User has explicitly chosen a volume preference — don't change it.
+            console.debug('Autoplay blocked but user preference set — not forcing mute');
+          }
         });
       } else {
         currentVideo.pause();
@@ -527,6 +556,8 @@ export function MovieShortsScreen({
               <button
                 onClick={() => setShowSearch(!showSearch)}
                 className="p-2 hover:bg-white/10 rounded-full transition-all"
+                title={showSearch ? 'Close search' : 'Open search'}
+                aria-label={showSearch ? 'Close search' : 'Open search'}
               >
                 {showSearch ? <X className="w-5 h-5 text-white drop-shadow-2xl" /> : <Search className="w-5 h-5 text-white drop-shadow-2xl" />}
               </button>
@@ -534,6 +565,8 @@ export function MovieShortsScreen({
               <button
                 onClick={onBack}
                 className="p-2 hover:bg-white/10 rounded-full transition-all"
+                title="Go back"
+                aria-label="Go back"
               >
                 <X className="w-5 h-5 text-white drop-shadow-2xl" />
               </button>
@@ -556,6 +589,8 @@ export function MovieShortsScreen({
                   <button
                     onClick={() => setSearchQuery('')}
                     className="absolute right-2 top-1/2 -translate-y-1/2 p-1"
+                    title="Clear search"
+                    aria-label="Clear search"
                   >
                     <X className="w-4 h-4 text-gray-400" />
                   </button>
@@ -633,6 +668,8 @@ export function MovieShortsScreen({
           <button
             onClick={handleLike}
             className="flex flex-col items-center gap-1 group"
+            title={liked.has(currentMovie.id) ? 'Unlike' : 'Like'}
+            aria-label={liked.has(currentMovie.id) ? 'Unlike' : 'Like'}
           >
             <div className="p-2 hover:bg-white/10 rounded-full transition-all">
               <Heart 
@@ -650,8 +687,15 @@ export function MovieShortsScreen({
 
           {/* Volume/Mute Button */}
           <button
-            onClick={() => setIsMuted(!isMuted)}
+            onClick={() => { 
+              const newMuted = !isMuted;
+              setIsMuted(newMuted); 
+              setUserSetMute(true); 
+              try { localStorage.setItem('shorts_isMuted', String(newMuted)); localStorage.setItem('shorts_userSetMute', 'true'); } catch (e) {}
+            }}
             className="flex flex-col items-center gap-1 group"
+            title={isMuted ? 'Unmute' : 'Mute'}
+            aria-label={isMuted ? 'Unmute' : 'Mute'}
           >
             <div className="p-2 hover:bg-white/10 rounded-full transition-all">
               {isMuted ? (
@@ -666,6 +710,8 @@ export function MovieShortsScreen({
           <button
             onClick={openComments}
             className="flex flex-col items-center gap-1 group"
+            title="Open comments"
+            aria-label="Open comments"
           >
             <div className="p-2 hover:bg-white/10 rounded-full transition-all">
               <MessageCircle className="w-7 h-7 text-white drop-shadow-2xl" />
@@ -679,6 +725,8 @@ export function MovieShortsScreen({
           <button
             onClick={() => setShowPreview(true)}
             className="flex flex-col items-center gap-1 group"
+            title="Preview"
+            aria-label="Preview"
           >
             <div className="p-2 hover:bg-white/10 rounded-full transition-all bg-gradient-to-br from-purple-500/20 to-cyan-500/20 border border-purple-500/40">
               <Play className="w-7 h-7 text-purple-400 drop-shadow-2xl fill-purple-400" />
@@ -697,6 +745,8 @@ export function MovieShortsScreen({
             <button
               onClick={() => setShowComments(false)}
               className="p-2 hover:bg-white/10 rounded-full transition-all"
+              title="Close comments"
+              aria-label="Close comments"
             >
               <X className="w-5 h-5 text-white" />
             </button>
@@ -727,6 +777,8 @@ export function MovieShortsScreen({
                       <button
                         onClick={() => deleteComment(comment.id)}
                         className="p-1.5 hover:bg-red-500/20 rounded-full transition-all group"
+                        title="Delete comment"
+                        aria-label="Delete comment"
                       >
                         <Trash2 className="w-4 h-4 text-gray-400 group-hover:text-red-500" />
                       </button>
@@ -754,6 +806,8 @@ export function MovieShortsScreen({
                   onClick={postComment}
                   disabled={!commentText.trim()}
                   className="p-2.5 rounded-full bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Post comment"
+                  aria-label="Post comment"
                 >
                   <Send className="w-5 h-5 text-white" />
                 </button>
@@ -775,6 +829,8 @@ export function MovieShortsScreen({
             <button
               onClick={() => setShowPreview(false)}
               className="absolute top-4 right-4 z-50 p-2 bg-black/60 hover:bg-black/80 rounded-full transition-all"
+              title="Close preview"
+              aria-label="Close preview"
             >
               <X className="w-6 h-6 text-white" />
             </button>
