@@ -14,7 +14,10 @@
       },
     },
     build: {
-      target: 'esnext',
+      // Target a modern but widely supported ES version for mobile browsers.
+      // 'esnext' can emit syntax (optional chaining, nullish coalescing, etc.)
+      // that older mobile browsers don't understand and causes blank screens.
+      target: 'es2018',
       outDir: 'build',
     },
     server: {
