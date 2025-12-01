@@ -81,6 +81,19 @@ export function MovieShortsScreen({
   // navigation/back/refresh. Read existing preference on mount.
   useEffect(() => {
     try {
+      // Migration step v3 (force-unmute): in case older keys still exist
+      // on user devices from previous releases, remove them so the default
+      // becomes unmuted for everyone. This is a one-time migration guarded
+      // by shorts_migration_force_unmute.
+      const forceUnmuteKey = 'shorts_migration_force_unmute';
+      if (!localStorage.getItem(forceUnmuteKey)) {
+        try { localStorage.removeItem('shorts_isMuted'); localStorage.removeItem('shorts_userSetMute'); } catch (e) {}
+        localStorage.setItem(forceUnmuteKey, 'true');
+        // immediate in-memory reset
+        setIsMuted(false);
+        setUserSetMute(false);
+      }
+
       // Migration: most users expect shorts to be unmuted by default. Some
       // older app versions wrote shorts_isMuted during autoplay handling and
       // that could force users into a permanently-muted experience. Run a
