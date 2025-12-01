@@ -82,11 +82,20 @@ export function MovieShortsScreen({
     try {
       const pref = localStorage.getItem('shorts_isMuted');
       const userSet = localStorage.getItem('shorts_userSetMute');
-      if (pref !== null) {
-        setIsMuted(pref === 'true');
-      }
+
+      // Only restore a stored mute preference when the user actually set it.
+      // Older versions of the app may have written 'shorts_isMuted' when
+      // autoplay was force-muted; we should NOT respect that unless
+      // 'shorts_userSetMute' is true (user actually toggled mute manually).
       if (userSet === 'true') {
         setUserSetMute(true);
+        if (pref !== null) setIsMuted(pref === 'true');
+      } else {
+        // No explicit user preference - default to UNMUTED to avoid forcing
+        // mute on every short (this resolves the 'must unmute each short' issue).
+        setIsMuted(false);
+        // Cleanup previous auto-muted records so old behavior doesn't persist
+        try { localStorage.removeItem('shorts_isMuted'); } catch (e) {}
       }
     } catch (e) {
       // ignore localStorage errors
