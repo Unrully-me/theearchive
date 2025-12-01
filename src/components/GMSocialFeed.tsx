@@ -116,7 +116,7 @@ export function GMSocialFeed({ currentUser, accessToken, onBack }: GMSocialFeedP
             'Authorization': `Bearer ${authToken}`,
           },
         }
-      ).catch(err => {
+      ).catch((err: unknown) => {
         console.error('❌ Network error:', err);
         throw new Error('Cannot connect to server. The Supabase Edge Function may not be deployed.');
       });
@@ -152,7 +152,7 @@ export function GMSocialFeed({ currentUser, accessToken, onBack }: GMSocialFeedP
         
         if (validPosts.length > 0) {
           console.log('📄 Sample post:', validPosts[0]);
-          console.log('📄 All post IDs:', validPosts.map(p => p.id));
+          console.log('📄 All post IDs:', validPosts.map((p: any) => p.id));
         } else {
           console.warn('⚠️ No valid posts found after filtering');
         }
@@ -560,7 +560,7 @@ export function GMSocialFeed({ currentUser, accessToken, onBack }: GMSocialFeedP
       <div className="min-h-screen bg-[#141414]">
         {/* Header */}
         <div className="sticky top-0 bg-[#1a1a1a] border-b border-white/10 px-4 py-3 flex items-center gap-3 z-50">
-          <button onClick={() => setSelectedPost(null)} className="text-white">
+          <button onClick={() => setSelectedPost(null)} className="text-white" title="Back" aria-label="Back to feed">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="text-lg text-white">Post</h1>
@@ -652,6 +652,8 @@ export function GMSocialFeed({ currentUser, accessToken, onBack }: GMSocialFeedP
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
                 placeholder="Add a comment..."
+                title="Add a comment"
+                aria-label="Add a comment"
                 className="flex-1 bg-[#1a1a1a] border border-white/10 rounded px-3 py-2 text-white placeholder-gray-500"
                 onKeyPress={(e) => e.key === 'Enter' && handleAddComment()}
               />
@@ -659,6 +661,7 @@ export function GMSocialFeed({ currentUser, accessToken, onBack }: GMSocialFeedP
                 onClick={handleAddComment}
                 disabled={!commentText.trim()}
                 className="px-4 py-2 bg-gradient-to-r from-purple-600 via-orange-500 to-cyan-600 text-white rounded disabled:opacity-50"
+                title="Send comment" aria-label="Send comment"
               >
                 <Send className="w-4 h-4" />
               </button>
@@ -694,7 +697,7 @@ export function GMSocialFeed({ currentUser, accessToken, onBack }: GMSocialFeedP
     return (
       <div className="min-h-screen bg-[#141414]">
         <div className="sticky top-0 bg-[#1a1a1a] border-b border-white/10 px-4 py-3 flex items-center justify-between z-50">
-          <button onClick={() => setShowCreatePost(false)} className="text-white">
+          <button onClick={() => setShowCreatePost(false)} className="text-white" title="Back" aria-label="Close create post">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="text-lg text-white">Create Post</h1>
@@ -754,6 +757,8 @@ export function GMSocialFeed({ currentUser, accessToken, onBack }: GMSocialFeedP
             value={postTitle}
             onChange={(e) => setPostTitle(e.target.value)}
             placeholder="Post title..."
+            title="Post title"
+            aria-label="Post title"
             className="w-full bg-[#1a1a1a] border border-white/10 rounded px-4 py-3 text-white placeholder-gray-500 mb-3"
           />
 
@@ -762,6 +767,8 @@ export function GMSocialFeed({ currentUser, accessToken, onBack }: GMSocialFeedP
             value={postContent}
             onChange={(e) => setPostContent(e.target.value)}
             placeholder={postType === 'social_link' ? 'Add your thoughts about this post... (optional)' : "What's on your mind? (optional)"}
+            title="Post content"
+            aria-label="Post content"
             className="w-full bg-[#1a1a1a] border border-white/10 rounded px-4 py-3 text-white placeholder-gray-500 mb-3 h-32 resize-none"
           />
 
@@ -773,6 +780,8 @@ export function GMSocialFeed({ currentUser, accessToken, onBack }: GMSocialFeedP
                 value={socialLink}
                 onChange={(e) => setSocialLink(e.target.value)}
                 placeholder="Paste your X or Instagram post link..."
+                title="Social link"
+                aria-label="Social link URL"
                 className="w-full bg-[#1a1a1a] border border-white/10 rounded px-4 py-3 text-white placeholder-gray-500"
               />
               <p className="text-xs text-gray-400 mt-2">
@@ -788,6 +797,8 @@ export function GMSocialFeed({ currentUser, accessToken, onBack }: GMSocialFeedP
                 type="file"
                 accept={postType === 'image' ? 'image/*' : 'video/*'}
                 onChange={(e) => setMediaFile(e.target.files?.[0] || null)}
+                title="Upload media"
+                aria-label="Upload media file"
                 className="w-full bg-[#1a1a1a] border border-white/10 rounded px-4 py-3 text-white"
               />
               {mediaFile && (
@@ -806,7 +817,7 @@ export function GMSocialFeed({ currentUser, accessToken, onBack }: GMSocialFeedP
       {/* Header */}
       <div className="sticky top-0 bg-[#1a1a1a] border-b border-white/10 px-4 py-3 flex items-center justify-between z-50">
         {onBack && (
-          <button onClick={onBack} className="text-white">
+          <button onClick={onBack} className="text-white" title="Back" aria-label="Back">
             <ArrowLeft className="w-5 h-5" />
           </button>
         )}
@@ -826,6 +837,8 @@ export function GMSocialFeed({ currentUser, accessToken, onBack }: GMSocialFeedP
               setRefreshing(false);
             }}
             disabled={refreshing}
+            title="Refresh feed"
+            aria-label="Refresh feed"
             className="p-2 text-gray-400 hover:text-white transition-colors disabled:opacity-50"
           >
             <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
@@ -939,11 +952,11 @@ export function GMSocialFeed({ currentUser, accessToken, onBack }: GMSocialFeedP
                     <Sparkles className="w-4 h-4" />
                     <span className="text-sm font-bold">GM {post.gmCount}</span>
                   </button>
-                  <button className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
+                  <button className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors" title="Comments" aria-label="View comments">
                     <MessageCircle className="w-4 h-4" />
                     <span className="text-sm">{post.commentCount}</span>
                   </button>
-                  <button className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
+                  <button className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors" title="Share" aria-label="Share post">
                     <Share2 className="w-4 h-4" />
                   </button>
                 </div>
