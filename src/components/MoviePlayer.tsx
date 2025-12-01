@@ -21,6 +21,9 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
   const [mode, setMode] = useState<PlayerMode>('theater');
   const [showControls, setShowControls] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
+  // PiP + overlay states (add proper PiP lifecycle handling similar to VideoPlayer)
+  const [isInPiP, setIsInPiP] = useState(false);
+  const [overlayHidden, setOverlayHidden] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -105,6 +108,27 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
       }
     }
     setMode(newMode);
+  };
+
+  // Toggle Picture-in-Picture on the video element
+  const togglePictureInPicture = async (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const video = videoRef.current;
+    if (!video) return;
+
+    try {
+      if ((document as any).pictureInPictureElement) {
+        await (document as any).exitPictureInPicture();
+        console.log('✅ Exited PiP mode (MoviePlayer)');
+      } else {
+        await video.requestPictureInPicture();
+        console.log('✅ Entered PiP mode (MoviePlayer)');
+      }
+    } catch (err) {
+      console.log('PiP error (MoviePlayer):', err);
+      // silent fallback: go to minimized mode on devices that don't support PiP
+      setMode('minimized');
+    }
   };
 
   // Dragging handlers
@@ -198,6 +222,49 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
       }
     };
   }, [mode]);
+
+  // Picture-in-Picture lifecycle handlers (when supported)
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const onEnterPiP = () => {
+      console.log('➡️ MoviePlayer entered PiP');
+      setIsInPiP(true);
+      setOverlayHidden(true);
+      setShowControls(false);
+    };
+
+    const onLeavePiP = () => {
+      console.log('⬅️ MoviePlayer left PiP');
+      setIsInPiP(false);
+      setOverlayHidden(false);
+      setShowControls(true);
+      // restore focus so UI becomes visible again
+      containerRef.current?.focus?.();
+    };
+
+    try {
+      video.addEventListener('enterpictureinpicture', onEnterPiP as EventListener);
+      video.addEventListener('leavepictureinpicture', onLeavePiP as EventListener);
+      document.addEventListener('enterpictureinpicture', onEnterPiP as EventListener);
+      document.addEventListener('leavepictureinpicture', onLeavePiP as EventListener);
+    } catch (err) {
+      // Some browsers may not support these events; ignore
+      console.debug('MoviePlayer PiP event listeners not supported:', err);
+    }
+
+    return () => {
+      try {
+        video.removeEventListener('enterpictureinpicture', onEnterPiP as EventListener);
+        video.removeEventListener('leavepictureinpicture', onLeavePiP as EventListener);
+        document.removeEventListener('enterpictureinpicture', onEnterPiP as EventListener);
+        document.removeEventListener('leavepictureinpicture', onLeavePiP as EventListener);
+      } catch (err) {
+        // ignore cleanup errors
+      }
+    };
+  }, []);
 
   // Video event handlers
   const handlePlayPause = (e?: React.MouseEvent) => {
@@ -362,7 +429,7 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
                   <Minimize2 className="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
                 <button
-                  onClick={() => handleModeChange('minimized')}
+                  onClick={togglePictureInPicture}
                   className="p-2 sm:p-3 bg-black/60 hover:bg-black/80 rounded-lg transition-all text-white hidden sm:block"
                   title="Float Player (Desktop Only)"
                 >
@@ -488,7 +555,7 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
                       Theater Mode
                     </button>
                     <button
-                      onClick={() => handleModeChange('minimized')}
+                      onClick={togglePictureInPicture}
                       className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-white hidden sm:block"
                       title="Float Player (Desktop Only)"
                     >
@@ -656,6 +723,34 @@ export function MoviePlayer({ movie, onClose }: MoviePlayerProps) {
             </div>
           </div>
         </Resizable>
+      )}
+
+      {/* PiP restore/close controls (show when overlayHidden due to entering PiP) */}
+      {overlayHidden && (
+        <div className="fixed bottom-6 left-6 z-[10000] pointer-events-auto">
+          <div className="flex flex-col gap-2 items-start">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setOverlayHidden(false);
+                setShowControls(true);
+              }}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg shadow-lg border border-white/10"
+            >
+              Restore Player
+            </button>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+              className="bg-black/60 hover:bg-black/80 text-white px-4 py-2 rounded-lg shadow-lg border border-white/10"
+            >
+              Close Player
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Custom Slider Styles */}
