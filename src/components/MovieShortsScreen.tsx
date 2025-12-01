@@ -230,6 +230,7 @@ export function MovieShortsScreen({
   useEffect(() => {
     const currentVideo = videoRefs.current[currentIndex];
     if (currentVideo) {
+      console.debug('Syncing video muted ->', isMuted, 'currentIndex=', currentIndex);
       currentVideo.muted = isMuted;
     }
   }, [isMuted, currentIndex]);
@@ -268,10 +269,52 @@ export function MovieShortsScreen({
       setIsTransitioning(true);
       if (diff > 0 && currentIndex < filteredMovies.length - 1) {
         // Swipe up - next video
-        setCurrentIndex(prev => prev + 1);
+        const nextIndex = currentIndex + 1;
+        const nextMovie = filteredMovies[nextIndex];
+        // Attempt to set the next video src and play within the user gesture
+        // (this counts as a user interaction and allows browsers to play sound)
+        const v = videoRefs.current[currentIndex];
+        if (v && nextMovie) {
+          try {
+            v.src = nextMovie.videoUrl;
+            v.poster = nextMovie.thumbnailUrl || '';
+            setCurrentIndex(nextIndex); // update state so UI matches
+            setIsPlaying(true);
+            // Try to play immediately using the user gesture
+            v.play().catch((err) => {
+              // if blocked, fallback: show enable prompt
+              console.debug('Play blocked on gesture-play:', err);
+              if (!userSetMute) setSoundBlocked(true);
+            });
+          } catch (err) {
+            console.error('Failed to preplay next short:', err);
+            setCurrentIndex(nextIndex);
+          }
+        } else {
+          setCurrentIndex(prev => prev + 1);
+        }
       } else if (diff < 0 && currentIndex > 0) {
         // Swipe down - previous video
-        setCurrentIndex(prev => prev - 1);
+        const prevIndex = currentIndex - 1;
+        const prevMovie = filteredMovies[prevIndex];
+        const v = videoRefs.current[currentIndex];
+        if (v && prevMovie) {
+          try {
+            v.src = prevMovie.videoUrl;
+            v.poster = prevMovie.thumbnailUrl || '';
+            setCurrentIndex(prevIndex);
+            setIsPlaying(true);
+            v.play().catch((err) => {
+              console.debug('Play blocked on gesture-play prev:', err);
+              if (!userSetMute) setSoundBlocked(true);
+            });
+          } catch (err) {
+            console.error('Failed to preplay prev short:', err);
+            setCurrentIndex(prevIndex);
+          }
+        } else {
+          setCurrentIndex(prev => prev - 1);
+        }
       }
       setTimeout(() => setIsTransitioning(false), 300);
     }
@@ -283,9 +326,47 @@ export function MovieShortsScreen({
     
     setIsTransitioning(true);
     if (e.deltaY > 0 && currentIndex < filteredMovies.length - 1) {
-      setCurrentIndex(prev => prev + 1);
+      const nextIndex = currentIndex + 1;
+      const nextMovie = filteredMovies[nextIndex];
+      const v = videoRefs.current[currentIndex];
+      if (v && nextMovie) {
+        try {
+          v.src = nextMovie.videoUrl;
+          v.poster = nextMovie.thumbnailUrl || '';
+          setCurrentIndex(nextIndex);
+          setIsPlaying(true);
+          v.play().catch((err) => {
+            console.debug('Play blocked on wheel-play:', err);
+            if (!userSetMute) setSoundBlocked(true);
+          });
+        } catch (err) {
+          console.error('Failed to preplay wheel next:', err);
+          setCurrentIndex(prev => prev + 1);
+        }
+      } else {
+        setCurrentIndex(prev => prev + 1);
+      }
     } else if (e.deltaY < 0 && currentIndex > 0) {
-      setCurrentIndex(prev => prev - 1);
+      const prevIndex = currentIndex - 1;
+      const prevMovie = filteredMovies[prevIndex];
+      const v = videoRefs.current[currentIndex];
+      if (v && prevMovie) {
+        try {
+          v.src = prevMovie.videoUrl;
+          v.poster = prevMovie.thumbnailUrl || '';
+          setCurrentIndex(prevIndex);
+          setIsPlaying(true);
+          v.play().catch((err) => {
+            console.debug('Play blocked on wheel-play prev:', err);
+            if (!userSetMute) setSoundBlocked(true);
+          });
+        } catch (err) {
+          console.error('Failed to preplay wheel prev:', err);
+          setCurrentIndex(prev => prev - 1);
+        }
+      } else {
+        setCurrentIndex(prev => prev - 1);
+      }
     }
     setTimeout(() => setIsTransitioning(false), 300);
   };
