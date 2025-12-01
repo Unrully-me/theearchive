@@ -24,6 +24,9 @@ export function VideoPlayer({ videoUrl, title, description, year, genre, onClose
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // PiP + overlay states to handle mobile restore/close behavior
+  const [isInPiP, setIsInPiP] = useState(false);
+  const [overlayHidden, setOverlayHidden] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [skipIndicator, setSkipIndicator] = useState<'forward' | 'backward' | null>(null);
   const [buffering, setBuffering] = useState(true);
@@ -169,12 +172,38 @@ export function VideoPlayer({ videoUrl, title, description, year, genre, onClose
     const onWaiting = () => setBuffering(true);
     const onCanPlay = () => setBuffering(false);
 
+    // Picture-in-Picture lifecycle handlers
+    const onEnterPiP = () => {
+      console.log('➡️ Video entered Picture-in-Picture');
+      setIsInPiP(true);
+      // hide the large overlay so the mobile user still has a lightweight control
+      setOverlayHidden(true);
+      setShowControls(false);
+    };
+
+    const onLeavePiP = () => {
+      console.log('⬅️ Video left Picture-in-Picture');
+      setIsInPiP(false);
+      // restore the overlay/UI so the user can interact with the player again
+      setOverlayHidden(false);
+      setShowControls(true);
+      // ensure the video container has focus so the UI is visible
+      containerRef.current?.focus?.();
+    };
+
     video.addEventListener('play', onPlay);
     video.addEventListener('pause', onPause);
     video.addEventListener('timeupdate', onTimeUpdate);
     video.addEventListener('loadedmetadata', onLoadedMetadata);
     video.addEventListener('waiting', onWaiting);
     video.addEventListener('canplay', onCanPlay);
+
+    // Some browsers fire PiP events on the video element
+    video.addEventListener('enterpictureinpicture', onEnterPiP as EventListener);
+    video.addEventListener('leavepictureinpicture', onLeavePiP as EventListener);
+    // Document-level listener for broad coverage (some browsers trigger on document)
+    document.addEventListener('enterpictureinpicture', onEnterPiP as EventListener);
+    document.addEventListener('leavepictureinpicture', onLeavePiP as EventListener);
 
     return () => {
       video.removeEventListener('play', onPlay);
@@ -183,6 +212,10 @@ export function VideoPlayer({ videoUrl, title, description, year, genre, onClose
       video.removeEventListener('loadedmetadata', onLoadedMetadata);
       video.removeEventListener('waiting', onWaiting);
       video.removeEventListener('canplay', onCanPlay);
+      video.removeEventListener('enterpictureinpicture', onEnterPiP as EventListener);
+      video.removeEventListener('leavepictureinpicture', onLeavePiP as EventListener);
+      document.removeEventListener('enterpictureinpicture', onEnterPiP as EventListener);
+      document.removeEventListener('leavepictureinpicture', onLeavePiP as EventListener);
     };
   }, []);
 
@@ -304,7 +337,7 @@ export function VideoPlayer({ videoUrl, title, description, year, genre, onClose
 
       {/* Controls Overlay */}
       <div 
-        className={`absolute inset-0 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'} pointer-events-none`}
+        className={`absolute inset-0 transition-opacity duration-300 ${overlayHidden ? 'hidden' : (showControls ? 'opacity-100' : 'opacity-0')} pointer-events-none`}
       >
         {/* Top Bar */}
         <div className="absolute top-0 left-0 right-0 px-6 py-5 bg-gradient-to-b from-black/90 via-black/50 to-transparent pointer-events-auto">
@@ -460,6 +493,34 @@ export function VideoPlayer({ videoUrl, title, description, year, genre, onClose
           </div>
         </div>
       </div>
+
+      {/* PiP restore/close controls (small persistent UI, useful for mobile) */}
+      {overlayHidden && (
+        <div className="fixed bottom-6 left-6 z-[10000] pointer-events-auto">
+          <div className="flex flex-col gap-2 items-start">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setOverlayHidden(false);
+                setShowControls(true);
+              }}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg shadow-lg border border-white/10"
+            >
+              Restore Player
+            </button>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+              className="bg-black/60 hover:bg-black/80 text-white px-4 py-2 rounded-lg shadow-lg border border-white/10"
+            >
+              Close Player
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
