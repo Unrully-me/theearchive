@@ -199,6 +199,12 @@ export function MovieShortsScreen({
   useEffect(() => {
     const currentVideo = videoRefs.current[currentIndex];
     if (currentVideo) {
+      // IMPORTANT: unless user explicitly set a mute preference, force
+      // the next short to be unmuted so users don't have to unmute repeatedly.
+      if (!userSetMute) {
+        setIsMuted(false);
+        try { currentVideo.muted = false; } catch (err) {}
+      }
       if (isPlaying) {
         currentVideo.play().catch(() => {
           // Auto-play with sound is blocked by the browser. Instead of forcing
