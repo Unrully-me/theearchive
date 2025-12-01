@@ -16,6 +16,7 @@ import {
   Clock,
   Star,
   Film,
+  RefreshCw,
   ChevronLeft,
   MoreVertical,
   Send,
@@ -621,6 +622,26 @@ export function MovieShortsScreen({
                 aria-label="Go back"
               >
                 <X className="w-5 h-5 text-white drop-shadow-2xl" />
+              </button>
+
+              {/* Reset audio preferences helper (clears localStorage keys for shorts) */}
+              <button
+                onClick={() => {
+                  try {
+                    localStorage.removeItem('shorts_isMuted');
+                    localStorage.removeItem('shorts_userSetMute');
+                  } catch (e) {}
+                  // Reset live state
+                  setIsMuted(false);
+                  setUserSetMute(false);
+                  setSoundBlocked(false);
+                  alert('Shorts audio preferences have been reset. Defaults are unmuted.');
+                }}
+                className="p-2 hover:bg-white/10 rounded-full transition-all"
+                title="Reset shorts audio preferences"
+                aria-label="Reset shorts audio preferences"
+              >
+                <RefreshCw className="w-5 h-5 text-white drop-shadow-2xl" />
               </button>
             </div>
           </div>
