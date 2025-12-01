@@ -22,7 +22,7 @@ import { MusicPlayer } from './components/MusicPlayer';
 import { SpotifyMusicScreen } from './components/SpotifyMusicScreen';
 import { GMSocialFeed } from './components/GMSocialFeed';
 import { MovieShortsScreen } from './components/MovieShortsScreen';
-import { AvatarPicker } from './components/AvatarPicker';
+import { AvatarPicker, getAvatarById } from './components/AvatarPicker';
 import { groupSeriesEpisodes } from './utils/seriesGrouping';
 import MovieAdminPortal from './movie-admin';
 import AdminPortal from './admin';
@@ -1124,10 +1124,7 @@ export default function App() {
             >
               {userAvatar ? (
                 <div 
-                  dangerouslySetInnerHTML={{ __html: (() => {
-                    const { getAvatarById } = require('./components/AvatarPicker');
-                    return getAvatarById(userAvatar);
-                  })() }}
+                    dangerouslySetInnerHTML={{ __html: getAvatarById(userAvatar) }}
                   className="w-full h-full"
                 />
               ) : (
@@ -1195,10 +1192,7 @@ export default function App() {
                 >
                   {userAvatar ? (
                     <div 
-                      dangerouslySetInnerHTML={{ __html: (() => {
-                        const { getAvatarById } = require('./components/AvatarPicker');
-                        return getAvatarById(userAvatar);
-                      })() }}
+                              dangerouslySetInnerHTML={{ __html: getAvatarById(userAvatar) }}
                       className="w-full h-full"
                     />
                   ) : (
@@ -1225,10 +1219,7 @@ export default function App() {
                         >
                           {userAvatar ? (
                             <div 
-                              dangerouslySetInnerHTML={{ __html: (() => {
-                                const { getAvatarById } = require('./components/AvatarPicker');
-                                return getAvatarById(userAvatar);
-                              })() }}
+                              dangerouslySetInnerHTML={{ __html: getAvatarById(userAvatar) }}
                               className="w-full h-full"
                             />
                           ) : (
@@ -1836,7 +1827,6 @@ export default function App() {
                   {userAvatar ? (
                     <div 
                       dangerouslySetInnerHTML={{ __html: (() => {
-                        const { getAvatarById } = require('./components/AvatarPicker');
                         return getAvatarById(userAvatar);
                       })() }}
                       className="w-full h-full"
