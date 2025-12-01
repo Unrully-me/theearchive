@@ -76,6 +76,10 @@ export function MovieShortsScreen({
   // user enable sound (requires user interaction). This prevents forcing
   // mute across the whole session when the browser blocks autoplay.
   const [soundBlocked, setSoundBlocked] = useState(false);
+  // show a one-time, prominent prompt asking the user to enable sound so
+  // their first tap unlocks audio for subsequent shorts (fixes browsers'
+  // autoplay-with-sound restrictions requiring a user gesture).
+  const [showEnableOncePrompt, setShowEnableOncePrompt] = useState(false);
 
   // Persist user preference for shorts mute/unmute in localStorage so it survives
   // navigation/back/refresh. Read existing preference on mount.
@@ -111,6 +115,7 @@ export function MovieShortsScreen({
 
       const pref = localStorage.getItem('shorts_isMuted');
       const userSet = localStorage.getItem('shorts_userSetMute');
+      const initialPromptSeen = localStorage.getItem('shorts_initial_prompt_shown');
 
       // Only restore a stored mute preference when the user actually set it.
       // Older versions of the app may have written 'shorts_isMuted' when
@@ -125,6 +130,12 @@ export function MovieShortsScreen({
         setIsMuted(false);
         // Cleanup previous auto-muted records so old behavior doesn't persist
         try { localStorage.removeItem('shorts_isMuted'); } catch (e) {}
+        // If the user hasn't been shown the enable-sound prompt yet, show it
+        // so they can activate sound for all shorts with one tap.
+        if (!initialPromptSeen) {
+          setShowEnableOncePrompt(true);
+          try { localStorage.setItem('shorts_initial_prompt_shown', 'true'); } catch (e) {}
+        }
       }
     } catch (e) {
       // ignore localStorage errors
@@ -576,6 +587,43 @@ export function MovieShortsScreen({
               </div>
             )}
           </button>
+
+          {/* One-time enable-sound prompt (appears once for new/legacy users) */}
+          {showEnableOncePrompt && (
+            <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none">
+              <div className="pointer-events-auto bg-black/90 px-6 py-6 rounded-3xl text-center max-w-md mx-4">
+                <h3 className="text-white text-lg font-black mb-3">Enable sound for shorts</h3>
+                <p className="text-sm text-gray-300 mb-4">Tap "Enable" once to allow audio while browsing Shorts — you won't need to unmute each short afterwards.</p>
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsMuted(false);
+                      setUserSetMute(true);
+                      setSoundBlocked(false);
+                      setShowEnableOncePrompt(false);
+                      try { localStorage.setItem('shorts_isMuted', 'false'); localStorage.setItem('shorts_userSetMute', 'true'); } catch (err) {}
+                      const v = videoRefs.current[currentIndex];
+                      if (v) { v.muted = false; v.play().catch(() => {}); }
+                    }}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-bold"
+                    title="Enable sound for shorts"
+                    aria-label="Enable sound for shorts"
+                  >
+                    Enable
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowEnableOncePrompt(false); setSoundBlocked(false); }}
+                    className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg"
+                    title="Keep muted"
+                    aria-label="Keep muted"
+                  >
+                    Keep muted
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Autoplay blocked overlay: browsers often prevent autoplay with sound.
               Show a small actionable prompt so the user can explicitly enable sound
