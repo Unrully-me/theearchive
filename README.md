@@ -1,0 +1,11 @@
+
+  # THE ARCHIVE
+
+  This is a code bundle for THE ARCHIVE. The original project is available at https://www.figma.com/design/mpfIyP9zpiF9mGARMVK3D9/THE-ARCHIVE.
+
+  ## Running the code
+
+  Run `npm i` to install the dependencies.
+
+  Run `npm run dev` to start the development server.
+  

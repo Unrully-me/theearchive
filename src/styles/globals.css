@@ -1,0 +1,151 @@
+@font-face {
+font-display: swap;
+font-family: 'Netflix Sans Variable';
+font-style: normal;
+font-weight: 100 900;
+font-stretch: 50% 125%;
+unicode-range: U+0, U+D, U+20-7E, U+A0-17F, U+181, U+186, U+189-18A, U+18E-192, U+194, U+196-199, U+19D-1A3, U+1AF-1B9, U+1C0-1C3, U+1CD-1DD, U+1E4-1EB, U+1EE-1F0, U+1F4-1F5, U+1F8-1FF, U+218-21B, U+21E-220, U+226-227, U+22E-22F, U+232-233, U+237, U+241-242, U+244, U+248-249, U+24C-24D, U+250-251, U+253-254, U+256-259, U+25B, U+25F, U+261, U+263, U+268-26A, U+272, U+275, U+27D, U+283, U+289-28B, U+292, U+294, U+2B7, U+2B9, U+2BB-2BC, U+2BE-2BF, U+2C6-2CB, U+2D8-2DD, U+300-304, U+306-30D, U+312, U+315, U+31B, U+323, U+326-329, U+32D-32E, U+331, U+338, U+344, U+358, U+374-375, U+37E, U+384-38A, U+38C, U+38E-3A1, U+3A3-3CE, U+400-45F, U+490-493, U+496-497, U+49A-49B, U+4A2-4A3, U+4AE-4B3, U+4B6-4B7, U+4BA-4BB, U+4C0, U+4CF, U+4D4-4D5, U+4D8-4D9, U+4E2-4E3, U+4E8-4E9, U+4EE-4EF, U+58F, U+60B, U+E3F, U+1DC6-1DC7, U+1E04-1E07, U+1E0C-1E13, U+1E18-1E19, U+1E20-1E25, U+1E28-1E2B, U+1E32-1E37, U+1E3A-1E3F, U+1E42-1E4B, U+1E5A-1E5B, U+1E5E-1E5F, U+1E62-1E63, U+1E6C-1E71, U+1E76-1E77, U+1E7C-1E85, U+1E88-1E89, U+1E92-1E96, U+1E9E, U+1EA0-1EF9, U+2000-200B, U+2010-2027, U+2030-203E, U+2044, U+2070, U+2074-208E, U+20A1-20A4, U+20A6-20AF, U+20B1-20B2, U+20B4-20B5, U+20B8-20BA, U+20BC-20BF, U+2103, U+2105, U+2109, U+2113, U+2116-2117, U+2120-2122, U+2126, U+212E, U+2153-215E, U+2190-2199, U+21A8, U+21B8-21B9, U+21D2, U+21D4, U+21E7, U+2202, U+2206, U+220F, U+2211-2212, U+2215, U+2219-221A, U+221E-2220, U+2229, U+222B, U+2248, U+2260-2261, U+2264-2265, U+2302, U+2310, U+2320-2321, U+2500, U+2502, U+250C, U+2510, U+2514, U+2518, U+251C, U+2524, U+252C, U+2534, U+253C, U+2550-256C, U+2580, U+2584, U+2588, U+258C, U+2590-2593, U+25A0-25A1, U+25AA-25AC, U+25B2-25B3, U+25B6-25B7, U+25BA, U+25BC-25BD, U+25C0-25C1, U+25C4, U+25C6-25CB, U+25CE-25D1, U+25D8-25D9, U+25E2-25E6, U+25EF, U+2605-2606, U+2609, U+260E-260F, U+261C, U+261E, U+263A-263D, U+2640-2642, U+2660-2661, U+2663-266D, U+266F, U+2C64, U+2E3A, U+A78B-A78C, U+A790-A791, U+FB00-FB04, U+FE45-FE46, U+FEFF, U+FFFD;
+src: url('https://storage.googleapis.com/download/storage/v1/b/prd-shared-services.firebasestorage.app/o/h2m-assets%2F78514440978dab922e7455622c8b448c296bcae9?generation=1760473387854069&alt=media') format('woff2');
+}
+
+@font-face {
+font-display: optional;
+font-family: 'Netflix Sans';
+font-style: normal;
+font-weight: 500;
+font-stretch: normal;
+unicode-range: U+0-10FFFF;
+src: url('https://storage.googleapis.com/download/storage/v1/b/prd-shared-services.firebasestorage.app/o/h2m-assets%2F34dcd2875c9752ebba6f894eb8d410e4958cc1b4?generation=1760473387856152&alt=media') format('woff2');
+}
+
+@font-face {
+font-display: optional;
+font-family: 'Netflix Sans';
+font-style: normal;
+font-weight: 400;
+font-stretch: normal;
+unicode-range: U+0-10FFFF;
+src: url('https://storage.googleapis.com/download/storage/v1/b/prd-shared-services.firebasestorage.app/o/h2m-assets%2F83d9f039f1ba7209321c7da72d3dc6a9aa5e2ab3?generation=1760473387854304&alt=media') format('woff2');
+}
+
+@font-face {
+font-display: optional;
+font-family: 'Netflix Sans';
+font-style: normal;
+font-weight: 900;
+font-stretch: normal;
+unicode-range: U+0-10FFFF;
+src: url('https://storage.googleapis.com/download/storage/v1/b/prd-shared-services.firebasestorage.app/o/h2m-assets%2F20269039a89ee7fda89b7bf2bb2f4c2451cba2c1?generation=1760473387844335&alt=media') format('woff2');
+}
+
+@font-face {
+font-display: optional;
+font-family: 'Netflix Sans';
+font-style: normal;
+font-weight: 700;
+font-stretch: normal;
+unicode-range: U+0-10FFFF;
+src: url('https://storage.googleapis.com/download/storage/v1/b/prd-shared-services.firebasestorage.app/o/h2m-assets%2F9074bca7ca0541efd221d12d30a33e3b74cf824b?generation=1760473387836411&alt=media') format('woff2');
+}
+
+/* ========== PROFESSIONAL NETFLIX-STYLE DESIGN ========== */
+
+/* SECRET ADMIN SWITCH - Subtle red dot pulse */
+@keyframes vibrate {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* Clean fade in */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Subtle slide up */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Netflix-style card hover (subtle) */
+.netflix-card {
+  transition: all 0.2s ease;
+  background: #181818;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.netflix-card:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
+  z-index: 10;
+}
+
+/* Clean glass effect (minimal) */
+.glass-minimal {
+  background: rgba(20, 20, 20, 0.9);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* CUSTOM SCROLLBAR */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Netflix-style Scrollbar (clean) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #141414;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4a4a4a;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6a6a6a;
+}
+
+/* Loading skeleton (subtle) */
+@keyframes skeleton-loading {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #1a1a1a 25%,
+    #2a2a2a 50%,
+    #1a1a1a 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+}
+
+/* Clean animations */
+.fade-in {
+  animation: fadeIn 0.3s ease;
+}
+
+.slide-in-up {
+  animation: slideInUp 0.4s ease;
+}

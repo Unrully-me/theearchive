@@ -1,0 +1,5 @@
+I need to add comprehensive debugging to handleDownload function to trace the issue.
+
+The function starts at line 325 in App.tsx.
+
+Let me create a temporary file with the enhanced version and then manually apply it.
