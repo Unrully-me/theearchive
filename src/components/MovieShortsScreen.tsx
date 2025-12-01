@@ -81,6 +81,21 @@ export function MovieShortsScreen({
   // navigation/back/refresh. Read existing preference on mount.
   useEffect(() => {
     try {
+      // Migration: most users expect shorts to be unmuted by default. Some
+      // older app versions wrote shorts_isMuted during autoplay handling and
+      // that could force users into a permanently-muted experience. Run a
+      // one-time migration to remove those legacy auto-mute values so the
+      // default becomes unmuted for everyone unless the user explicitly set
+      // their preference thereafter.
+      const migrationKey = 'shorts_migration_v2';
+      if (!localStorage.getItem(migrationKey)) {
+        try { localStorage.removeItem('shorts_isMuted'); localStorage.removeItem('shorts_userSetMute'); } catch (e) {}
+        localStorage.setItem(migrationKey, 'true');
+        // ensure we use unmuted defaults
+        setIsMuted(false);
+        setUserSetMute(false);
+      }
+
       const pref = localStorage.getItem('shorts_isMuted');
       const userSet = localStorage.getItem('shorts_userSetMute');
 
