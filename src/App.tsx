@@ -1106,8 +1106,7 @@ export default function App() {
                     e.stopPropagation();
                     handleRedDotClick();
                   }}
-                  className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-600 rounded-full"
-                  style={{ animation: 'vibrate 2s ease-in-out infinite' }}
+                  className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-600 rounded-full animate-vibrate"
                 ></div>
               </div>
             </div>
@@ -1123,10 +1122,7 @@ export default function App() {
               className="w-9 h-9 rounded-full overflow-hidden bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center hover:from-purple-700 hover:to-pink-700 transition-all hover:scale-105"
             >
               {userAvatar ? (
-                <div 
-                    dangerouslySetInnerHTML={{ __html: getAvatarById(userAvatar) }}
-                  className="w-full h-full"
-                />
+                <div className="w-full h-full">{getAvatarById(userAvatar)}</div>
               ) : (
                 <User className="w-4 h-4 text-white" />
               )}
@@ -1153,13 +1149,12 @@ export default function App() {
                 <div className="bg-gradient-to-br from-purple-600 via-orange-500 to-cyan-600 p-2.5 rounded-lg shadow-lg">
                   <Film className="w-6 h-6 text-white" />
                   {/* SECRET ADMIN SWITCH - Subtle red dot */}
-                  <div 
+                    <div 
                     onClick={(e) => {
                       e.stopPropagation();
                       handleRedDotClick();
                     }}
-                    className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-600 rounded-full"
-                    style={{ animation: 'vibrate 2s ease-in-out infinite' }}
+                      className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-600 rounded-full animate-vibrate"
                   ></div>
                 </div>
               </div>
@@ -1189,12 +1184,11 @@ export default function App() {
                 <button
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
                   className="w-9 h-9 rounded-full overflow-hidden bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center hover:from-purple-700 hover:to-pink-700 transition-all relative z-50 hover:scale-105"
+                  title="Open profile menu"
+                  aria-label="Open profile menu"
                 >
                   {userAvatar ? (
-                    <div 
-                              dangerouslySetInnerHTML={{ __html: getAvatarById(userAvatar) }}
-                      className="w-full h-full"
-                    />
+                    <div className="w-full h-full">{getAvatarById(userAvatar)}</div>
                   ) : (
                     <User className="w-5 h-5 text-white" />
                   )}
@@ -1218,10 +1212,7 @@ export default function App() {
                           className="relative w-12 h-12 rounded-full overflow-hidden shadow-lg hover:shadow-purple-500/50 transition-all hover:scale-105 group flex-shrink-0"
                         >
                           {userAvatar ? (
-                            <div 
-                              dangerouslySetInnerHTML={{ __html: getAvatarById(userAvatar) }}
-                              className="w-full h-full"
-                            />
+                            <div className="w-full h-full">{getAvatarById(userAvatar)}</div>
                           ) : (
                             <div className="w-full h-full bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center">
                               <User className="w-5 h-5 text-white" />
@@ -1407,6 +1398,8 @@ export default function App() {
                             <button
                               key={index}
                               onClick={() => setHeroIndex(index)}
+                              title={`Go to slide ${index + 1}`}
+                              aria-label={`Go to slide ${index + 1}`}
                               className={`h-2 rounded-full transition-all duration-500 ${
                                 index === heroIndex 
                                   ? 'bg-gradient-to-r from-purple-600 to-pink-600 w-8 shadow-2xl shadow-purple-500/60' 
@@ -1485,9 +1478,7 @@ export default function App() {
                         </div>
                         
                         {/* Vignette Effect - Dramatic Edges */}
-                        <div className="absolute inset-0 pointer-events-none" style={{
-                          boxShadow: 'inset 0 0 100px rgba(0,0,0,0.8), inset 0 0 200px rgba(0,0,0,0.5)'
-                        }} />
+                        <div className="absolute inset-0 pointer-events-none inset-hero-shadow" />
                       </div>
                     )}
 
@@ -1825,12 +1816,7 @@ export default function App() {
                   className="relative w-16 h-16 rounded-full overflow-hidden shadow-2xl shadow-purple-500/50 hover:shadow-purple-500/70 transition-all hover:scale-105 group"
                 >
                   {userAvatar ? (
-                    <div 
-                      dangerouslySetInnerHTML={{ __html: (() => {
-                        return getAvatarById(userAvatar);
-                      })() }}
-                      className="w-full h-full"
-                    />
+                    <div className="w-full h-full">{getAvatarById(userAvatar)}</div>
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center">
                       <User className="w-8 h-8 text-white" />

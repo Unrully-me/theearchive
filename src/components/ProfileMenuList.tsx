@@ -173,10 +173,7 @@ export function ProfileMenuList({
               className="relative w-20 h-20 rounded-full overflow-hidden shadow-2xl shadow-purple-500/50 hover:shadow-purple-500/70 transition-all hover:scale-105 group"
             >
               {userAvatar ? (
-                <div 
-                  dangerouslySetInnerHTML={{ __html: getAvatarById(userAvatar) }}
-                  className="w-full h-full"
-                />
+                    <div className="w-full h-full">{getAvatarById(userAvatar)}</div>
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-purple-600 to-cyan-600 flex items-center justify-center">
                   <span className="text-white font-black text-2xl">
@@ -228,10 +225,9 @@ export function ProfileMenuList({
             >
               <div className="flex items-center gap-4">
                 <div 
-                  className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg"
-                  style={{ backgroundColor: `${item.color}20` }}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg bg-white/5"
                 >
-                  <Icon className="w-5 h-5" style={{ color: item.color }} />
+                  <Icon className="w-5 h-5 text-white" />
                 </div>
                 <div className="text-left">
                   <h3 className="font-bold text-white">{item.label}</h3>

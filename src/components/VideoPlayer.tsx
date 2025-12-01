@@ -352,6 +352,8 @@ export function VideoPlayer({ videoUrl, title, description, year, genre, onClose
                 onClose();
               }}
               className="ml-4 p-3 bg-red-600 hover:bg-red-700 rounded-full transition-all hover:scale-110 shadow-2xl"
+              title="Close player"
+              aria-label="Close player"
             >
               <X className="w-6 h-6 text-white" />
             </button>
@@ -367,6 +369,8 @@ export function VideoPlayer({ videoUrl, title, description, year, genre, onClose
                 togglePlay();
               }}
               className="w-24 h-24 rounded-full bg-purple-600/90 hover:bg-purple-700 flex items-center justify-center transition-all hover:scale-110 shadow-2xl"
+              title={isPlaying ? 'Pause' : 'Play'}
+              aria-label={isPlaying ? 'Pause' : 'Play'}
             >
               <Play className="w-12 h-12 text-white ml-1" />
             </button>
@@ -385,11 +389,16 @@ export function VideoPlayer({ videoUrl, title, description, year, genre, onClose
                 value={currentTime}
                 onChange={handleSeek}
                 className="absolute inset-0 w-full h-2 opacity-0 cursor-pointer z-10"
+                title="Seek"
+                aria-label="Seek"
               />
-              <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-purple-600 to-purple-500 rounded-full transition-all"
-                  style={{ width: `${(currentTime / duration) * 100}%` }}
+              <div className="w-full h-2">
+                <progress
+                  className="custom-progress"
+                  value={currentTime}
+                  max={duration || 0}
+                  title="Playback progress"
+                  aria-label="Playback progress"
                 />
               </div>
             </div>
@@ -404,12 +413,14 @@ export function VideoPlayer({ videoUrl, title, description, year, genre, onClose
             {/* Left Controls */}
             <div className="flex items-center gap-3">
               {/* Play/Pause */}
-              <button
+                <button
                 onClick={(e) => {
                   e.stopPropagation();
                   togglePlay();
                 }}
                 className="p-3 sm:p-4 bg-purple-600 hover:bg-purple-700 rounded-full transition-all hover:scale-110 shadow-lg"
+                  title={isPlaying ? 'Pause' : 'Play'}
+                  aria-label={isPlaying ? 'Pause' : 'Play'}
               >
                 {isPlaying ? (
                   <Pause className="w-6 h-6 text-white" />
@@ -441,6 +452,8 @@ export function VideoPlayer({ videoUrl, title, description, year, genre, onClose
                 <button
                   onClick={toggleMute}
                   className="p-3 sm:p-4 bg-white/20 hover:bg-white/30 rounded-full transition-all hover:scale-110 shadow-lg"
+                  title={isMuted || volume === 0 ? 'Unmute' : 'Mute'}
+                  aria-label={isMuted || volume === 0 ? 'Unmute' : 'Mute'}
                 >
                   {isMuted || volume === 0 ? (
                     <VolumeX className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
@@ -459,9 +472,8 @@ export function VideoPlayer({ videoUrl, title, description, year, genre, onClose
                     value={volume}
                     onChange={handleVolumeChange}
                     className="w-24 h-1 appearance-none bg-white/20 rounded-full cursor-pointer"
-                    style={{
-                      background: `linear-gradient(to right, #a855f7 0%, #a855f7 ${volume * 100}%, rgba(255,255,255,0.2) ${volume * 100}%, rgba(255,255,255,0.2) 100%)`
-                    }}
+                    title="Volume"
+                    aria-label="Volume"
                   />
                 </div>
               </div>
@@ -482,6 +494,8 @@ export function VideoPlayer({ videoUrl, title, description, year, genre, onClose
               <button
                 onClick={toggleFullscreen}
                 className="p-3 sm:p-4 bg-white/20 hover:bg-white/30 rounded-full transition-all hover:scale-110 shadow-lg"
+                title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+                aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
               >
                 {isFullscreen ? (
                   <Minimize2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
