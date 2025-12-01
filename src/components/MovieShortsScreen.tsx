@@ -66,11 +66,15 @@ export function MovieShortsScreen({
 }: MovieShortsScreenProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   // Tracks whether the user manually toggled mute/unmute. If true, we should
   // respect the user's preference and not override it during autoplay failures
   // or when switching between shorts.
   const [userSetMute, setUserSetMute] = useState(false);
+  // If autoplay-with-sound is blocked we show a small prompt to let the
+  // user enable sound (requires user interaction). This prevents forcing
+  // mute across the whole session when the browser blocks autoplay.
+  const [soundBlocked, setSoundBlocked] = useState(false);
 
   // Persist user preference for shorts mute/unmute in localStorage so it survives
   // navigation/back/refresh. Read existing preference on mount.
@@ -148,17 +152,15 @@ export function MovieShortsScreen({
     if (currentVideo) {
       if (isPlaying) {
         currentVideo.play().catch(() => {
-          // Auto-play might be blocked. Only automatically mute when the
-          // user has NOT explicitly toggled mute. If the user already chose
-          // unmuted, we should not override that preference — the browser may
-          // block autoplay with sound but we won't change their choice.
+          // Auto-play with sound is blocked by the browser. Instead of forcing
+          // mute globally (which makes all subsequent shorts silent), we show
+          // an enable-sound prompt so the user can interact to allow sound.
           if (!userSetMute) {
-            setIsMuted(true);
-            currentVideo.muted = true;
-            currentVideo.play().catch(() => {});
+            setSoundBlocked(true);
+            console.debug('Autoplay blocked; prompting user to enable sound');
           } else {
-            // User has explicitly chosen a volume preference — don't change it.
-            console.debug('Autoplay blocked but user preference set — not forcing mute');
+            // user explicitly set a preference — respect it
+            console.debug('Autoplay blocked but user preference present — not forcing change');
           }
         });
       } else {
@@ -536,6 +538,47 @@ export function MovieShortsScreen({
               </div>
             )}
           </button>
+
+          {/* Autoplay blocked overlay: browsers often prevent autoplay with sound.
+              Show a small actionable prompt so the user can explicitly enable sound
+              for all future shorts (persisted) without having to unmute each one. */}
+          {soundBlocked && (
+            <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
+              <div className="pointer-events-auto bg-black/80 px-6 py-4 rounded-xl text-center max-w-sm">
+                <p className="text-white font-bold mb-2">Autoplay with sound blocked</p>
+                <p className="text-gray-300 text-sm mb-3">Tap enable to allow audio for shorts (your choice will be remembered).</p>
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsMuted(false);
+                      setUserSetMute(true);
+                      setSoundBlocked(false);
+                      try { localStorage.setItem('shorts_isMuted', 'false'); localStorage.setItem('shorts_userSetMute', 'true'); } catch (err) {}
+                      const v = videoRefs.current[currentIndex];
+                      if (v) {
+                        v.muted = false;
+                        v.play().catch(() => {});
+                      }
+                    }}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-bold"
+                    title="Enable sound"
+                    aria-label="Enable sound"
+                  >
+                    Enable sound
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setSoundBlocked(false); }}
+                    className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg"
+                    title="Keep muted"
+                    aria-label="Keep muted"
+                  >
+                    Keep muted
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Top Bar - Gradient Overlay */}
@@ -691,6 +734,7 @@ export function MovieShortsScreen({
               const newMuted = !isMuted;
               setIsMuted(newMuted); 
               setUserSetMute(true); 
+              setSoundBlocked(false);
               try { localStorage.setItem('shorts_isMuted', String(newMuted)); localStorage.setItem('shorts_userSetMute', 'true'); } catch (e) {}
             }}
             className="flex flex-col items-center gap-1 group"
